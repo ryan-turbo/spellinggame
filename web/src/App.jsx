@@ -1,0 +1,835 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { VOCAB as PU2_VOCAB } from './data/pu2_vocab'
+import { PU3_VOCAB } from './data/pu3_vocab'
+import { recordGameResult, loadStats } from './pages/StatsPage'
+
+// 合并 PU2 + PU3 词汇库
+const VOCAB = { ...PU2_VOCAB, ...PU3_VOCAB }
+const getAllWordsForVocab = (key) => VOCAB[key]?.words || []
+import StatsPage from './pages/StatsPage'
+import './App.css'
+
+// ─── 工具 ───────────────────────────────────────────────
+const speak = (text) => {
+  if (!window.speechSynthesis) return
+  window.speechSynthesis.cancel()
+  const u = new SpeechSynthesisUtterance(text)
+  // 优先用 Google UK English Female（最清晰、适合青少年），没有则用系统英式或默认
+  const tryVoice = () => {
+    const voices = window.speechSynthesis.getVoices()
+    const preferred = [
+      'Google UK English Female',
+      'Microsoft Hazel',
+      'Google UK English Male',
+      'Microsoft David',
+      'Samantha',
+      'Karen',
+      'Natasha',
+      'Daniel',
+    ]
+    for (const name of preferred) {
+      const v = voices.find(vo => vo.name.includes(name))
+      if (v) return v
+    }
+    // 降级：任何英式 voice
+    const enGB = voices.find(vo => vo.lang === 'en-GB')
+    if (enGB) return enGB
+    // 再降级：任何英语 voice
+    const en = voices.find(vo => vo.lang.startsWith('en'))
+    return en || null
+  }
+  const voice = tryVoice()
+  if (voice) u.voice = voice
+  u.lang = voice?.lang || 'en-GB'
+  u.rate = 0.9
+  u.pitch = 1.05
+  window.speechSynthesis.speak(u)
+}
+
+// ─── 键盘打字音效 ────────────────────────────────────────
+let _audioCtx = null
+let _audioCtxReady = false
+
+const getAudioCtx = () => {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  // 浏览器 autoplay 策略：需要用户交互后才能 resume
+  if (_audioCtx.state === 'suspended') {
+    _audioCtx.resume().then(() => { _audioCtxReady = true }).catch(() => {})
+  } else {
+    _audioCtxReady = true
+  }
+  return _audioCtx
+}
+
+// 初始化音频上下文（用户首次交互时调用）
+const initAudio = () => {
+  try {
+    const ctx = getAudioCtx()
+    if (ctx.state === 'suspended') ctx.resume()
+    _audioCtxReady = true
+  } catch {}
+}
+
+const playKeySound = (pitch = 1) => {
+  if (!_audioCtxReady) return
+  try {
+    const ctx = getAudioCtx()
+    const now = ctx.currentTime
+    const buf = ctx.createBuffer(1, ctx.sampleRate * 0.06, ctx.sampleRate)
+    const data = buf.getChannelData(0)
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.012))
+    }
+    const src = ctx.createBufferSource()
+    src.buffer = buf
+    const filt = ctx.createBiquadFilter()
+    filt.type = 'bandpass'
+    filt.frequency.value = 1800 * pitch
+    filt.Q.value = 3
+    const gain = ctx.createGain()
+    gain.gain.setValueAtTime(0.45, now)
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06)
+    src.connect(filt).connect(gain).connect(ctx.destination)
+    src.start(now)
+    src.stop(now + 0.06)
+  } catch {}
+}
+
+const playCorrectSound = () => {
+  if (!_audioCtxReady) return
+  try {
+    const ctx = getAudioCtx()
+    const now = ctx.currentTime
+    [[329.63, 0], [392.0, 0.08], [523.25, 0.16]].forEach(([freq, delay]) => {
+      const osc = ctx.createOscillator()
+      const g = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      g.gain.setValueAtTime(0.45, now + delay)
+      g.gain.exponentialRampToValueAtTime(0.001, now + delay + 0.4)
+      osc.connect(g).connect(ctx.destination)
+      osc.start(now + delay)
+      osc.stop(now + delay + 0.4)
+    })
+  } catch {}
+}
+
+// ─── 音节分组建构（IPA元音扫描 + 字母分配）────────────
+/**
+ * 将单词按音节拆分成数组，每项含 letters（字母组）和 ipa（对应IPA音标片段）
+ */
+const splitSyllables = (word, phonetic) => {
+  if (!phonetic) {
+    return [{ letters: word, ipa: '' }]
+  }
+
+  // 提取IPA音标内容（去掉方括号和斜杠）
+  const stripped = phonetic.replace(/[\[\]\/]/g, '')
+  // 元音音素列表（按长度降序，防止 'iː' 被 'i' 优先匹配）
+  // 注意：IPA 有时用普通字母 i/a/u 而非音标符号 ɪ/ɑ/ʊ
+  // 双字母音标必须排在单字母前面！
+  const VOWEL_PHONEMES = [
+    'iː','eɪ','aɪ','ɔɪ','aʊ','ɪə','eə','ʊə', // 双字符优先
+    'ɑː','ɔː','uː','ɜː', // 带ː的
+    'ɪ','e','æ','ʌ','ʊ','ə','ɒ','ɔ', // 单字符音标
+    'a','i','o','u' // 普通字母（最后匹配）
+  ]
+
+  // 扫描IPA，提取每个元音及其位置（跳过重音标记 ˈ ˌ）
+  const vowelUnits = [] // [{ipa, charPos}]
+  let pos = 0
+  while (pos < stripped.length) {
+    const ch = stripped[pos]
+    if (ch === 'ˈ' || ch === 'ˌ') { pos++; continue } // 跳过重音标记
+    let matched = false
+    for (const vp of VOWEL_PHONEMES) {
+      if (stripped.slice(pos, pos + vp.length) === vp) {
+        vowelUnits.push({ ipa: vp, charPos: pos })
+        pos += vp.length
+        matched = true
+        break
+      }
+    }
+    if (!matched) pos++ // 辅音跳过
+  }
+
+  if (vowelUnits.length === 0) return [{ letters: word, ipa: '' }]
+  if (vowelUnits.length === 1) return [{ letters: word, ipa: phonetic }]
+
+  // 把IPA按音节切成音节IPA片段
+  // 使用 onset maximization：两个元音之间的辅音群归后一个音节
+  // 除非辅音群前紧贴元音且后紧贴元音，此时辅音群中间切分（如 nk → n归前 k归后）
+  const syllableIpas = []
+  let prevPos = 0
+  for (let i = 1; i < vowelUnits.length; i++) {
+    const gapStart = vowelUnits[i - 1].charPos + vowelUnits[i - 1].ipa.length
+    const gapEnd = vowelUnits[i].charPos
+    const gap = stripped.slice(gapStart, gapEnd).replace(/[ˈˌ]/g, '')
+
+    if (gap.length <= 1) {
+      // 0-1个辅音：全部归后一个音节（onset maximization）
+      syllableIpas.push(stripped.slice(prevPos, gapStart))
+      prevPos = gapStart
+    } else if (gap.length === 2) {
+      // 2个辅音：第一个归前，第二个归后（如 -kt-, -nd- 等）
+      const splitAt = gapStart + gap[0].length + (stripped[gapStart] === 'ˈ' || stripped[gapStart] === 'ˌ' ? 1 : 0)
+      syllableIpas.push(stripped.slice(prevPos, splitAt))
+      prevPos = splitAt
+    } else {
+      // 3+辅音：中间切，前半归前音节，后半归后音节
+      const half = Math.ceil(gap.length / 2)
+      // 计算实际切分位置（需要考虑重音标记占位）
+      let actualSplit = gapStart
+      let count = 0
+      while (actualSplit < gapEnd && count < half) {
+        if (stripped[actualSplit] !== 'ˈ' && stripped[actualSplit] !== 'ˌ') count++
+        actualSplit++
+      }
+      syllableIpas.push(stripped.slice(prevPos, actualSplit))
+      prevPos = actualSplit
+    }
+  }
+  syllableIpas.push(stripped.slice(prevPos)) // 最后一节
+
+  // 按 IPA 各音节长度比例分配字母（更准确的音节划分）
+  const n = syllableIpas.length
+  const ipaLengths = syllableIpas.map(ipa => ipa.replace(/[ˈˌ]/g, '').length)
+  const totalIpaLen = ipaLengths.reduce((a, b) => a + b, 0)
+
+  // 计算每个音节应分配的字母数（按 IPA 长度比例）
+  let letterCounts = ipaLengths.map(len => Math.round(len / totalIpaLen * word.length))
+  // 调整确保总和等于 word.length
+  const diff = word.length - letterCounts.reduce((a, b) => a + b, 0)
+  if (diff > 0) {
+    // 少了，给最后一个音节补
+    letterCounts[letterCounts.length - 1] += diff
+  } else if (diff < 0) {
+    // 多了，从最后一个音节减
+    letterCounts[letterCounts.length - 1] += diff
+  }
+
+  // 按分配结果构造音节
+  const result = []
+  let wPos = 0
+  syllableIpas.forEach((ipa, i) => {
+    const letters = word.slice(wPos, wPos + letterCounts[i])
+    wPos += letterCounts[i]
+    result.push({ letters, ipa: '/' + ipa + '/' })
+  })
+
+  return result
+}
+
+// ─── 通用工具 ──────────────────────────────────────────
+const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
+const loadProgress = () => {
+  try { return JSON.parse(localStorage.getItem('pu2_progress') || '{}') } catch { return {} }
+}
+const saveProgress = p => localStorage.setItem('pu2_progress', JSON.stringify(p))
+
+// ─── 闪卡组件 ──────────────────────────────────────────
+function FlashCard({ word, unitTitle, index, total, onSpeak }) {
+  const [flipped, setFlipped] = useState(false)
+  const imgSrc = word.image ? (word.image.startsWith('/') ? word.image : '/' + word.image) : `/images/${word.word}.png`
+
+  return (
+    <div className="flashcard-scene">
+      <div className="flashcard-meta">
+        <span className="flashcard-unit">{unitTitle}</span>
+        <span className="flashcard-counter">{index + 1} / {total}</span>
+      </div>
+      <div className={`flashcard ${flipped ? 'flipped' : ''}`} onClick={() => setFlipped(f => !f)}>
+        <div className="flashcard-face flashcard-front">
+          <img src={imgSrc} alt={word.word} className="flashcard-img"
+            onError={e => { e.target.style.display = 'none' }} />
+          <div className="flashcard-word-row">
+            <span className="flashcard-word">{word.word}</span>
+            <button className="icon-btn" onClick={e => { e.stopPropagation(); onSpeak(word.word) }}>🔊</button>
+          </div>
+          <p className="flashcard-hint">Click to flip → See definition</p>
+        </div>
+        <div className="flashcard-face flashcard-back">
+          <div className="flashcard-definition">{word.definition}</div>
+          <div className="flashcard-phonetic">{word.phonetic}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── 字母输入框组件（音节分组版）──────────────────────
+function LetterInput({ word, phonetic, onDone, disabled }) {
+  const syllables = splitSyllables(word, phonetic)
+
+  // 展平为各字母的元数据
+  let globalIdx = 0
+  const flat = []
+  syllables.forEach(syl => {
+    for (const ch of syl.letters) {
+      flat.push({ ch: ch.toLowerCase(), globalIdx: globalIdx++ })
+    }
+  })
+  const total = flat.length
+
+  const [vals, setVals] = useState(Array(total).fill(''))
+  const inputsRef = useRef([])
+
+  // 每次换题时重置
+  useEffect(() => {
+    setVals(Array(total).fill(''))
+  }, [word])
+
+  // 禁用解除后自动聚焦
+  useEffect(() => {
+    if (!disabled) {
+      const t = setTimeout(() => inputsRef.current[0]?.focus(), 60)
+      return () => clearTimeout(t)
+    }
+  }, [disabled])
+
+  const handleChange = (i, v) => {
+    if (disabled) return
+    const char = v.toLowerCase().slice(-1)
+    const next = [...vals]
+    next[i] = char
+    setVals(next)
+    if (char) playKeySound(0.7 + (i / total) * 0.8)
+    if (char && i < total - 1) inputsRef.current[i + 1]?.focus()
+    if (char && i === total - 1) setTimeout(() => onDone(next.join('')), 50)
+  }
+
+  const handleKeyDown = (i, e) => {
+    if (e.key === 'Backspace' && !vals[i] && i > 0) inputsRef.current[i - 1]?.focus()
+  }
+
+  // 计算每个音节组含多少个字母格
+  let letterCount = 0
+  const sylBoxes = syllables.map(syl => {
+    const count = syl.letters.length
+    const boxes = []
+    for (let j = 0; j < count; j++) {
+      const gi = letterCount++
+      const entered = vals[gi]?.toLowerCase()
+      const expected = flat[gi].ch
+      let cls = 'letter-box'
+      if (entered) cls += entered === expected ? ' letter-correct' : ' letter-wrong'
+      boxes.push(
+        <input
+          key={gi}
+          ref={el => inputsRef.current[gi] = el}
+          className={cls}
+          value={vals[gi]}
+          onChange={e => handleChange(gi, e.target.value)}
+          onKeyDown={e => handleKeyDown(gi, e)}
+          maxLength={1}
+          disabled={disabled}
+          autoFocus={gi === 0}
+        />
+      )
+    }
+    return { boxes, ipa: syl.ipa, sylIdx: syllables.indexOf(syl) }
+  })
+
+  return (
+    <div className="syllable-group-row">
+      {syllables.map((syl, si) => (
+        <div key={si} className="syllable-group">
+          <span className="syllable-ipa">{syl.ipa}</span>
+          <div className="syllable-boxes">
+            {syllables[si] && sylBoxes[si]
+              ? sylBoxes[si].boxes
+              : null}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+
+// ─── 闯关游戏（单阶段）───────────────────────────────
+function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
+  const [queue] = useState(() => shuffle(allWords).slice(0, 10))
+  const [current, setCurrent] = useState(0)
+  const [score, setScore] = useState(0)
+  const [feedback, setFeedback] = useState(null)
+  const [finished, setFinished] = useState(false)
+  const [hintLevel, setHintLevel] = useState(0)
+  const [wordResults, setWordResults] = useState([]) // [{word, correct}]
+  const w = queue[current]
+
+  useEffect(() => {
+    const t = setTimeout(() => speak(w.word), 400)
+    return () => clearTimeout(t)
+  }, [current, w.word])
+
+  // 回车键：答对后按 Enter 进入下一题
+  const handleEnter = useCallback((e) => {
+    if (e.key === 'Enter' && feedback === 'correct') {
+      setFeedback(null)
+      if (current + 1 >= queue.length) setFinished(true)
+      else { setCurrent(c => c + 1); setHintLevel(0) }
+    }
+  }, [feedback, current, queue.length])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleEnter)
+    return () => window.removeEventListener('keydown', handleEnter)
+  }, [handleEnter])
+
+  const handleDone = useCallback((typed) => {
+    const correct = typed.toLowerCase() === w.word.toLowerCase()
+    if (correct) {
+      setFeedback('correct')
+      setScore(s => s + 1)
+      setWordResults(r => [...r, { word: w.word, correct: true }])
+      playCorrectSound()
+      // 不自动下一题，等待按 Enter
+    } else {
+      setFeedback('wrong')
+      setWordResults(r => [...r, { word: w.word, correct: false }])
+    }
+  }, [w.word])
+
+  const giveUp = () => {
+    setWordResults(r => [...r, { word: w.word, correct: false }])
+    speak(w.word)
+    setTimeout(() => {
+      if (current + 1 >= queue.length) setFinished(true)
+      else { setCurrent(c => c + 1); setHintLevel(0) }
+    }, 1800)
+  }
+
+  useEffect(() => {
+    if (!finished) return
+    const prog = loadProgress()
+    const prev = prog[unitKey] || { bestScore: 0, completed: false }
+    prog[unitKey] = { bestScore: Math.max(prev.bestScore, score), completed: true }
+    saveProgress(prog)
+    // 记录详细统计（用于图表）
+    recordGameResult({ unitKey, score, total: queue.length, wordResults })
+  }, [finished])
+
+  // ── 结束页 ──
+  if (finished) {
+    const pct = Math.round((score / queue.length) * 100)
+    return (
+      <div className="result-screen">
+        <div className="result-card">
+          <h2 className="result-title">🎉 Round Complete!</h2>
+          <div className="result-score">{score} / {queue.length}</div>
+          <div className="result-bar"><div className="result-bar-fill" style={{ width: pct + '%' }} /></div>
+          <p className="result-pct">{pct}% correct</p>
+          <button className="btn btn-primary" onClick={onComplete}>Back to Menu</button>
+        </div>
+      </div>
+    )
+  }
+
+  const hintText = hintLevel === 1 ? `First letter: ${w.word[0].toUpperCase()}...`
+    : hintLevel === 2 ? `Answer: ${w.word}` : null
+  const imgSrc = w.image ? (w.image.startsWith('/') ? w.image : '/' + w.image) : `/images/${w.word}.png`
+
+  return (
+    <div className="spelling-scene">
+      <div className="spelling-header">
+        <button className="icon-btn back-btn" onClick={onBack}>← Back</button>
+        <span className="spelling-title">{unitTitle}</span>
+        <span className="spelling-score">🏆 {score} pts</span>
+      </div>
+      <div className="spelling-progress-bar">
+        <div className="spelling-progress-fill" style={{ width: `${(current / queue.length) * 100}%` }} />
+      </div>
+
+      <div className={`phase-tag ${feedback === 'correct' ? 'phase-correct' : ''} ${feedback === 'wrong' ? 'phase-wrong' : ''}`}>
+        {feedback === 'correct' ? '✨ Correct! Press Enter to continue' : feedback === 'wrong' ? 'Try Again' : `Q${current + 1} / ${queue.length}`}
+      </div>
+
+      {/* 卡片区：超大图 + 释义直接显示 */}
+      <div className="spell-card">
+        <img src={imgSrc} alt={w.word} className="spell-card-img"
+          onError={e => { e.target.style.display = 'none' }} />
+        <div className="spell-def">{w.definition}</div>
+        <div className="spell-phonetic">{w.phonetic}</div>
+      </div>
+
+      <button className="btn btn-speak spell-audio-btn" onClick={() => speak(w.word)}>
+        🔊 Listen Again
+      </button>
+
+      <LetterInput word={w.word} phonetic={w.phonetic} onDone={handleDone} disabled={feedback === 'correct'} />
+
+      <div className="spell-actions">
+        <button className="btn btn-hint" onClick={() => setHintLevel(h => Math.min(h + 1, 2))} disabled={hintLevel === 2}>
+          💡 Hint {hintLevel + 1}/2
+        </button>
+        <button className="btn btn-giveup" onClick={giveUp}>Give Up</button>
+      </div>
+      {hintText && <div className="spell-hint">{hintText}</div>}
+    </div>
+  )
+}
+
+// ─── 主 App ─────────────────────────────────────────────
+// 确保语音列表加载完毕
+if (window.speechSynthesis) {
+  window.speechSynthesis.getVoices()
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices()
+}
+
+// ─── 课程数据（可扩展 PU1/PU3）──────────────────────
+const COURSES = [
+  {
+    id: 'PU1',
+    icon: '🌱',
+    title: 'Spelling Bee',
+    subtitle: 'Essential English for Beginners',
+    color: '#22c55e',
+    bg: '#bbf7d0',
+    cover: null,
+    units: [], // 待填充
+    locked: true,
+  },
+  {
+    id: 'PU2',
+    icon: '📚',
+    title: 'Meet the Family',
+    subtitle: '168 Words · 9 Units',
+    color: '#3b82f6',
+    bg: '#dbeafe',
+    cover: null,
+    units: ['u1','u2','u3','u4','u5','u6','u7','u8','u9'],
+    locked: false,
+  },
+  {
+    id: 'PU3',
+    icon: '🚀',
+    title: 'Welcome to Diversicus',
+    subtitle: '144 Words · 9 Units',
+    color: '#8b5cf6',
+    bg: '#ede9fe',
+    cover: null,
+    units: ['u1','u2','u3','u4','u5','u6','u7','u8','u9'],
+    locked: false,
+  },
+]
+
+export default function App() {
+  const [homeView, setHomeView] = useState('home') // 'home' | 'browse'
+  const [activeCourse, setActiveCourse] = useState(null) // null | COURSES item
+  const [activeUnit, setActiveUnit] = useState(null)      // 'u1'..'u9'
+  const [unitView, setUnitView] = useState(null)          // null|'flashcard'|'spelling'|'random'
+  const [showStats, setShowStats] = useState(false)        // 统计页面
+  const [progress, setProgress] = useState(loadProgress)
+  const refresh = () => setProgress(loadProgress())
+
+  // 首次用户交互时初始化音频上下文（绕过浏览器 autoplay 限制）
+  const audioInitedRef = useRef(false)
+  const initOnInteraction = useCallback(() => {
+    if (!audioInitedRef.current) {
+      audioInitedRef.current = true
+      const ctx = getAudioCtx()
+      if (ctx.state === 'suspended') ctx.resume()
+      _audioCtxReady = true
+    }
+  }, [])
+
+  // ── 全局首次点击初始化音频 ──
+  const onFirstClick = useCallback(() => initOnInteraction(), [initOnInteraction])
+
+  // ── 统计页面 ─────────────────────────────────────
+  if (showStats) {
+    return (
+      <div className="app" onClick={onFirstClick}>
+        <StatsPage onBack={() => setShowStats(false)} />
+      </div>
+    )
+  }
+
+  // ── 第三级：闯关 / 闪卡 / 随机闯关 ─────────────
+  if (activeCourse && unitView) {
+    const words = unitView === 'random'
+      ? (() => {
+          const all = activeCourse.units.flatMap(k => VOCAB[k]?.words || [])
+          const arr = [...all]
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]]
+          }
+          return arr.slice(0, 10)
+        })()
+      : (activeUnit ? VOCAB[activeUnit]?.words || [] : [])
+    const title = unitView === 'random' ? `Random Challenge (10 words)`
+      : unitView === 'flashcard' ? VOCAB[activeUnit]?.title
+      : VOCAB[activeUnit]?.title
+    return (
+      <div className="app" onClick={onFirstClick}>
+        <div className="embedded-view">
+          <div className="embedded-header">
+            <button className="icon-btn" onClick={() => { setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}>
+              ← Back to Courses
+            </button>
+          </div>
+          {unitView === 'flashcard' && activeUnit && (
+            <UnitFlashcardView
+              unitKey={activeUnit}
+              VOCAB={VOCAB}
+              progress={progress}
+              refresh={refresh}
+            />
+          )}
+          {(unitView === 'spelling' || unitView === 'random') && (
+            <SpellingGame
+              key={`${unitView}-${activeUnit || 'all'}-${Date.now()}`}
+              unitKey={activeUnit || 'random'}
+              unitTitle={title}
+              allWords={words}
+              onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
+              onBack={() => { setUnitView(null); setActiveUnit(null) }}
+            />
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  // ── 第二级：课程内（单元列表） ─────────────────
+  if (activeCourse) {
+    return (
+      <div className="app level-view" style={{ "--card-color": activeCourse.color, "--card-bg": activeCourse.bg }} onClick={onFirstClick}>
+        <button className="back-btn" onClick={() => { setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}>
+          ← Back to Courses
+        </button>
+        <div className="level-banner">
+          <span className="level-icon">{activeCourse.icon}</span>
+          <div>
+            <h1 className="level-title">{activeCourse.id} · {activeCourse.title}</h1>
+            <p className="level-subtitle">{activeCourse.subtitle}</p>
+          </div>
+        </div>
+
+        <div className="random-btn-wrap">
+          <button className="btn btn-lg"
+            onClick={() => { setUnitView('random'); setActiveUnit(null) }}>
+            🎲 Random Challenge (10 words)
+          </button>
+        </div>
+
+        <div className="unit-grid">
+          {activeCourse.units.map(key => {
+            const unit = VOCAB[key]
+            if (!unit) return null
+            const prog = progress[key] || {}
+            const done = prog.completed
+            const stars = prog.bestScore ? Math.min(3, Math.ceil(prog.bestScore / 4)) : 0
+            return (
+              <div key={key} className={`unit-card ${done ? 'done' : ''}`}
+                style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
+                <div className="unit-key-row">
+                  <span className="unit-card-key">{key.replace('pu3u', 'U')}</span>
+                </div>
+                <div className="unit-title-row">
+                  <h3 className="unit-card-title">{unit.title}</h3>
+                  {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
+                </div>
+                <p className="unit-card-meta">{unit.words.length} words</p>
+                <div className="unit-card-actions">
+                  <button className="unit-action-btn challenge" onClick={() => { setActiveUnit(key); setUnitView('spelling') }}>
+                    <span className="unit-action-icon">🎯</span>
+                    <span className="unit-action-label">Challenge</span>
+                  </button>
+                  <button className="unit-action-btn learn" onClick={() => { setActiveUnit(key); setUnitView('flashcard') }}>
+                    <span className="unit-action-icon">📖</span>
+                    <span className="unit-action-label">Learn</span>
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  // ── 首页（课程卡片网格） ──────────────────────────
+  return (
+    <div className="app home-view" onClick={onFirstClick}>
+      <header className="app-header">
+        <div className="app-header-row">
+          <div>
+            <h1>🎯 Spelling Academy</h1>
+            <p className="app-subtitle">Master English Vocabulary — One Level at a Time</p>
+          </div>
+        </div>
+      </header>
+
+      {/* 导航 tabs：My Progress | Courses | Browse All Words */}
+      <div className="home-nav-tabs">
+        <button className={`home-nav-tab ${homeView === 'home' ? 'active' : ''}`} onClick={() => setHomeView('home')}>📖 Courses</button>
+        <button className={`home-nav-tab ${homeView === 'browse' ? 'active' : ''}`} onClick={() => setHomeView('browse')}>🔍 Browse All</button>
+        <button className="home-nav-tab" onClick={() => setShowStats(true)}>🏆 My Progress</button>
+      </div>
+
+      {homeView === 'browse' ? (
+        <BrowseAllView
+          VOCAB={VOCAB}
+          PU2_VOCAB={PU2_VOCAB}
+          PU3_VOCAB={PU3_VOCAB}
+          progress={progress}
+          onBack={() => setHomeView('home')}
+          onFlashcard={(unitKey) => { 
+            const course = unitKey.startsWith('pu2u') ? 'PU2' : 'PU3'
+            setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course)) 
+          }}
+          onChallenge={(unitKey) => { 
+            const course = unitKey.startsWith('pu2u') ? 'PU2' : 'PU3'
+            setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course))
+          }}
+        />
+      ) : (
+        <div className="course-grid">
+          {COURSES.map(course => (
+            <div
+              key={course.id}
+              className={`course-card ${course.locked ? 'locked' : ''}`}
+              style={{ '--card-color': course.color, '--card-bg': course.bg }}
+              onClick={() => !course.locked && setActiveCourse(course)}
+            >
+              <div className="course-card-header">
+                <span className="course-icon">{course.icon}</span>
+                <span className="course-id">{course.id}</span>
+                {course.locked && <span className="course-lock">🔒</span>}
+              </div>
+              <h2 className="course-title">{course.title}</h2>
+              <p className="course-subtitle">{course.subtitle}</p>
+              {!course.locked && (
+                <div className="course-units-preview">
+                  {course.units.slice(0,3).map(u => (
+                    <span key={u} className="unit-chip">{u.replace('pu3u', 'U').toUpperCase()}</span>
+                  ))}
+                  {course.units.length > 3 && <span className="unit-chip muted">+{course.units.length-3} more</span>}
+                </div>
+              )}
+              {course.locked ? (
+                <span className="course-btn locked">Coming Soon</span>
+              ) : (
+                <span className="course-btn">Start Learning →</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+// ─── 辅助：单元闪卡浏览 ─────────────────────────────
+function UnitFlashcardView({ unitKey, VOCAB, progress, refresh }) {
+  const unit = VOCAB[unitKey]
+  const words = (unit?.words || []).map(w => ({ ...w, unitTitle: unit.title }))
+  const [idx, setIdx] = useState(0)
+  const [mastered, setMastered] = useState(() => {
+    const p = loadProgress()
+    return p[unitKey]?.masteredWords || []
+  })
+  const saveM = useCallback((list) => {
+    const p = loadProgress()
+    p[unitKey] = { ...p[unitKey], masteredWords: list }
+    saveProgress(p); refresh()
+  }, [unitKey, refresh])
+  const toggleM = () => {
+    const word = words[idx].word
+    const next = mastered.includes(word) ? mastered.filter(x => x !== word) : [...mastered, word]
+    setMastered(next); saveM(next)
+  }
+  if (!words.length) return null
+  return (
+    <div className="app flashcard-standalone">
+      <FlashCard word={words[idx]} unitTitle={words[idx].unitTitle} index={idx} total={words.length} onSpeak={speak} />
+      <div className="flashcard-controls">
+        <button className="btn btn-secondary" onClick={() => setIdx(i => Math.max(0, i - 1))}>← Prev</button>
+        <button className={`btn ${mastered.includes(words[idx].word) ? 'btn-gold' : 'btn-primary'}`} onClick={toggleM}>
+          {mastered.includes(words[idx].word) ? '✓ Mastered' : 'Mark Mastered'}
+        </button>
+        <button className="btn btn-secondary" onClick={() => setIdx(i => Math.min(words.length - 1, i + 1))}>Next →</button>
+      </div>
+    </div>
+  )
+}
+
+// ─── 辅助：浏览全部词库 ────────────────────────────
+function BrowseAllView({ VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashcard, onChallenge }) {
+  const [courseFilter, setCourseFilter] = useState('all') // 'all' | 'pu2' | 'pu3'
+  const [unitFilter, setUnitFilter] = useState('all')
+  
+  // Get available unit keys based on course filter
+  const getUnitKeys = (course) => {
+    if (course === 'all') {
+      // Return all keys from both PU2 and PU3
+      return [...Object.keys(PU2_VOCAB), ...Object.keys(PU3_VOCAB)]
+    }
+    const vocab = course === 'pu2' ? PU2_VOCAB : PU3_VOCAB
+    return Object.keys(vocab)
+  }
+  
+  const currentUnits = getUnitKeys(courseFilter)
+  
+  // Get all words based on filters
+  const getWords = () => {
+    let words = []
+    const vocab = courseFilter === 'all' ? VOCAB : (courseFilter === 'pu2' ? PU2_VOCAB : PU3_VOCAB)
+    const unitKeys = getUnitKeys(courseFilter)
+    
+    if (unitFilter === 'all') {
+      words = unitKeys.flatMap(k => vocab[k]?.words?.map(w => ({...w, unitKey: k})) || [])
+    } else {
+      words = vocab[unitFilter]?.words?.map(w => ({...w, unitKey: unitFilter})) || []
+    }
+    return words
+  }
+  
+  const visible = getWords()
+  
+  return (
+    <div className="browse-all-view">
+      <div className="browse-header">
+        <button className="icon-btn" onClick={onBack}>← Back</button>
+        <h2>All Words</h2>
+      </div>
+      
+      {/* Course selector */}
+      <div className="course-tabs">
+        <button className={`course-tab ${courseFilter === 'all' ? 'active' : ''}`}
+          onClick={() => { setCourseFilter('all'); setUnitFilter('all'); }}>📚 All (PU2+PU3)</button>
+        <button className={`course-tab ${courseFilter === 'pu2' ? 'active' : ''}`}
+          onClick={() => { setCourseFilter('pu2'); setUnitFilter('u1'); }}>📚 PU2</button>
+        <button className={`course-tab ${courseFilter === 'pu3' ? 'active' : ''}`}
+          onClick={() => { setCourseFilter('pu3'); setUnitFilter('u1'); }}>🚀 PU3</button>
+      </div>
+      
+      {/* Unit selector */}
+      <div className="unit-tabs">
+        <button className={`tab-btn ${unitFilter === 'all' ? 'active' : ''}`}
+          onClick={() => setUnitFilter('all')}>All</button>
+        {currentUnits.map(k => (
+          <button key={k} className={`tab-btn ${unitFilter === k ? 'active' : ''}`}
+            onClick={() => setUnitFilter(k)}>{k.replace('pu2u','U').replace('pu3u','U').toUpperCase()}</button>
+        ))}
+      </div>
+      
+      <div className="browse-stats">
+        {visible.length} words
+      </div>
+      
+      <div className="browse-grid">
+        {visible.map((w) => (
+          <div key={w.word} className="word-chip"
+            onClick={() => onFlashcard(w.unitKey)}>
+            <img src={w.image ? (w.image.startsWith('/') ? w.image : '/' + w.image) : `/images/${w.word}.png`} alt={w.word} className="word-chip-img"
+              onError={e => { e.target.style.opacity='0.2' }} />
+            <span className="word-chip-name">{w.word}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
