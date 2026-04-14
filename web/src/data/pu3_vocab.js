@@ -1,7 +1,7 @@
 // PU3 Vocabulary - auto-generated with correct image mapping
 
 export const PU3_VOCAB = {
-  u1: {
+  pu3u1: {
     title: "Practice Time",
     subtitle: "练习时间",
     words: [
@@ -16,7 +16,7 @@ export const PU3_VOCAB = {
       { word: "climb", phonetic: "/klaɪm/", chinese: "", definition: "To move up something using your hands and feet.", audio: "climb.mp3", image: "images/climb.png", has_image: true },
     ],
   },
-  u2: {
+  pu3u2: {
     title: "What's for Breakfast?",
     subtitle: "早餐吃什么？",
     words: [
@@ -37,7 +37,7 @@ export const PU3_VOCAB = {
       { word: "got dressed up", phonetic: "/ɡɒt drest ʌp/", chinese: "", definition: "To put on special or nice clothes.", audio: "got_dressed_up.mp3", image: "images/got_dressed_up.png", has_image: true },
     ],
   },
-  u3: {
+  pu3u3: {
     title: "A Healthy Body",
     subtitle: "健康的身体",
     words: [
@@ -60,7 +60,7 @@ export const PU3_VOCAB = {
       { word: "stomach-ache", phonetic: "/ˈstʌmək eɪk/", chinese: "", definition: "Pain in your stomach.", audio: "stomach_ache.mp3", image: "images/stomach_ache.png", has_image: true },
     ],
   },
-  u4: {
+  pu3u4: {
     title: "Fun in the Jungle",
     subtitle: "丛林探险",
     words: [
@@ -85,7 +85,7 @@ export const PU3_VOCAB = {
       { word: "threw", phonetic: "/θruː/", chinese: "", definition: "Threw (past tense of throw). To send something through the air.", audio: "threw.mp3", image: "images/threw.png", has_image: true },
     ],
   },
-  u5: {
+  pu3u5: {
     title: "Behind the Scenes",
     subtitle: "幕后探秘",
     words: [
@@ -108,7 +108,7 @@ export const PU3_VOCAB = {
       { word: "glass", phonetic: "/ɡlɑːs/", chinese: "", definition: "A clear container for drinking.", audio: "glass.mp3", image: "images/glass.png", has_image: true },
     ],
   },
-  u6: {
+  pu3u6: {
     title: "Classroom Stars",
     subtitle: "教室明星",
     words: [
@@ -133,7 +133,7 @@ export const PU3_VOCAB = {
       { word: "website", phonetic: "/ˈwebsaɪt/", chinese: "", definition: "A place on the Internet with information.", audio: "website.mp3", image: "images/website.png", has_image: true },
     ],
   },
-  u7: {
+  pu3u7: {
     title: "When I Grow Up",
     subtitle: "我的梦想",
     words: [
@@ -157,7 +157,7 @@ export const PU3_VOCAB = {
       { word: "brave", phonetic: "/breɪv/", chinese: "", definition: "Not afraid of danger.", audio: "brave.mp3", image: "images/brave.png", has_image: true },
     ],
   },
-  u8: {
+  pu3u8: {
     title: "City Break",
     subtitle: "城市之旅",
     words: [
@@ -175,7 +175,7 @@ export const PU3_VOCAB = {
       { word: "bank", phonetic: "/bæŋk/", chinese: "", definition: "A place where people keep their money.", audio: "bank.mp3", image: "images/bank.png", has_image: true },
     ],
   },
-  u9: {
+  pu3u9: {
     title: "Let's Travel",
     subtitle: "一起旅行",
     words: [

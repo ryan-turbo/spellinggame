@@ -3,9 +3,10 @@ import { VOCAB as PU2_VOCAB } from './data/pu2_vocab'
 import { PU3_VOCAB } from './data/pu3_vocab'
 import { recordGameResult, loadStats } from './pages/StatsPage'
 
-// 合并 PU2 + PU3 词汇库
+// PU2 + PU3 合并（key 已改为 pu2u1-pu2u9, pu3u1-pu3u9）
 const VOCAB = { ...PU2_VOCAB, ...PU3_VOCAB }
 const getAllWordsForVocab = (key) => VOCAB[key]?.words || []
+const getVocabData = (key) => VOCAB[key] || {}
 import StatsPage from './pages/StatsPage'
 import './App.css'
 
@@ -498,18 +499,18 @@ const COURSES = [
     color: '#3b82f6',
     bg: '#dbeafe',
     cover: null,
-    units: ['u1','u2','u3','u4','u5','u6','u7','u8','u9'],
+    units: ['pu2u1','pu2u2','pu2u3','pu2u4','pu2u5','pu2u6','pu2u7','pu2u8','pu2u9'],
     locked: false,
   },
   {
     id: 'PU3',
     icon: '🚀',
     title: 'Welcome to Diversicus',
-    subtitle: '144 Words · 9 Units',
+    subtitle: '143 Words · 9 Units',
     color: '#8b5cf6',
     bg: '#ede9fe',
     cover: null,
-    units: ['u1','u2','u3','u4','u5','u6','u7','u8','u9'],
+    units: ['pu3u1','pu3u2','pu3u3','pu3u4','pu3u5','pu3u6','pu3u7','pu3u8','pu3u9'],
     locked: false,
   },
 ]
@@ -558,10 +559,10 @@ export default function App() {
           }
           return arr.slice(0, 10)
         })()
-      : (activeUnit ? VOCAB[activeUnit]?.words || [] : [])
+      : (activeUnit ? getVocabData(activeUnit)?.words || [] : [])
     const title = unitView === 'random' ? `Random Challenge (10 words)`
-      : unitView === 'flashcard' ? VOCAB[activeUnit]?.title
-      : VOCAB[activeUnit]?.title
+      : unitView === 'flashcard' ? getVocabData(activeUnit)?.title
+      : getVocabData(activeUnit)?.title
     return (
       <div className="app" onClick={onFirstClick}>
         <div className="embedded-view">
