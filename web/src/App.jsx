@@ -627,7 +627,7 @@ export default function App() {
               <div key={key} className={`unit-card ${done ? 'done' : ''}`}
                 style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
                 <div className="unit-key-row">
-                  <span className="unit-card-key">{key.replace('pu3u', 'U')}</span>
+                  <span className="unit-card-key">{key.replace('pu3u', 'PU3U').replace('pu2u', 'PU2U')}</span>
                 </div>
                 <div className="unit-title-row">
                   <h3 className="unit-card-title">{unit.title}</h3>
@@ -706,7 +706,7 @@ export default function App() {
               {!course.locked && (
                 <div className="course-units-preview">
                   {course.units.slice(0,3).map(u => (
-                    <span key={u} className="unit-chip">{u.replace('pu3u', 'U').toUpperCase()}</span>
+                    <span key={u} className="unit-chip">{u.replace('pu2u', 'PU2U').replace('pu3u', 'PU3U')}</span>
                   ))}
                   {course.units.length > 3 && <span className="unit-chip muted">+{course.units.length-3} more</span>}
                 </div>
@@ -813,7 +813,7 @@ function BrowseAllView({ VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashc
           onClick={() => setUnitFilter('all')}>All</button>
         {currentUnits.map(k => (
           <button key={k} className={`tab-btn ${unitFilter === k ? 'active' : ''}`}
-            onClick={() => setUnitFilter(k)}>{k.replace('pu2u','U').replace('pu3u','U').toUpperCase()}</button>
+            onClick={() => setUnitFilter(k)}>{k.replace('pu2u','PU2U').replace('pu3u','PU3U')}</button>
         ))}
       </div>
       
