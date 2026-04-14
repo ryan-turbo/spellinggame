@@ -12,39 +12,24 @@ import './App.css'
 
 // ─── 工具 ───────────────────────────────────────────────
 const speak = (text) => {
-  if (!window.speechSynthesis) return
-  window.speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(text)
-  // 优先用 Google UK English Female（最清晰、适合青少年），没有则用系统英式或默认
-  const tryVoice = () => {
+  // 优先播放预录制的 mp3 音频（en-GB-RyanNeural）
+  const audio = new Audio(`/audio/${encodeURIComponent(text)}.mp3`)
+  audio.onerror = () => {
+    // mp3 不存在时降级到系统 TTS
+    if (!window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(text)
     const voices = window.speechSynthesis.getVoices()
-    const preferred = [
-      'Google UK English Female',
-      'Microsoft Hazel',
-      'Google UK English Male',
-      'Microsoft David',
-      'Samantha',
-      'Karen',
-      'Natasha',
-      'Daniel',
-    ]
+    const preferred = ['Google UK English Male','Google UK English Female','Microsoft George','Microsoft Hazel','Daniel','Microsoft David']
     for (const name of preferred) {
       const v = voices.find(vo => vo.name.includes(name))
-      if (v) return v
+      if (v) { u.voice = v; break }
     }
-    // 降级：任何英式 voice
-    const enGB = voices.find(vo => vo.lang === 'en-GB')
-    if (enGB) return enGB
-    // 再降级：任何英语 voice
-    const en = voices.find(vo => vo.lang.startsWith('en'))
-    return en || null
+    u.lang = 'en-GB'
+    u.rate = 0.85
+    window.speechSynthesis.speak(u)
   }
-  const voice = tryVoice()
-  if (voice) u.voice = voice
-  u.lang = voice?.lang || 'en-GB'
-  u.rate = 0.9
-  u.pitch = 1.05
-  window.speechSynthesis.speak(u)
+  audio.play().catch(() => {})
 }
 
 // ─── 键盘打字音效 ────────────────────────────────────────
