@@ -520,6 +520,7 @@ export default function App() {
   const [activeCourse, setActiveCourse] = useState(null) // null | COURSES item
   const [activeUnit, setActiveUnit] = useState(null)      // 'u1'..'u9'
   const [unitView, setUnitView] = useState(null)          // null|'flashcard'|'spelling'|'random'
+  const [startWordIdx, setStartWordIdx] = useState(0)      // BrowseAll 点击单词时的起始索引
   const [showStats, setShowStats] = useState(false)        // 统计页面
   const [progress, setProgress] = useState(loadProgress)
   const refresh = () => setProgress(loadProgress())
@@ -577,6 +578,7 @@ export default function App() {
               VOCAB={VOCAB}
               progress={progress}
               refresh={refresh}
+              startIdx={startWordIdx}
             />
           )}
           {(unitView === 'spelling' || unitView === 'random') && (
@@ -678,9 +680,9 @@ export default function App() {
           PU3_VOCAB={PU3_VOCAB}
           progress={progress}
           onBack={() => setHomeView('home')}
-          onFlashcard={(unitKey) => { 
+          onFlashcard={(unitKey, wordIdx = 0) => { 
             const course = unitKey.startsWith('pu2u') ? 'PU2' : 'PU3'
-            setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course)) 
+            setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course)); setUnitView('flashcard'); setStartWordIdx(wordIdx)
           }}
           onChallenge={(unitKey) => { 
             const course = unitKey.startsWith('pu2u') ? 'PU2' : 'PU3'
@@ -724,10 +726,10 @@ export default function App() {
   )
 }
 // ─── 辅助：单元闪卡浏览 ─────────────────────────────
-function UnitFlashcardView({ unitKey, VOCAB, progress, refresh }) {
+function UnitFlashcardView({ unitKey, VOCAB, progress, refresh, startIdx = 0 }) {
   const unit = VOCAB[unitKey]
   const words = (unit?.words || []).map(w => ({ ...w, unitTitle: unit.title }))
-  const [idx, setIdx] = useState(0)
+  const [idx, setIdx] = useState(startIdx)
   const [mastered, setMastered] = useState(() => {
     const p = loadProgress()
     return p[unitKey]?.masteredWords || []
@@ -781,9 +783,9 @@ function BrowseAllView({ VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashc
     const unitKeys = getUnitKeys(courseFilter)
     
     if (unitFilter === 'all') {
-      words = unitKeys.flatMap(k => vocab[k]?.words?.map(w => ({...w, unitKey: k})) || [])
+      words = unitKeys.flatMap(k => vocab[k]?.words?.map((w, i) => ({...w, unitKey: k, wordIndexInUnit: i})) || [])
     } else {
-      words = vocab[unitFilter]?.words?.map(w => ({...w, unitKey: unitFilter})) || []
+      words = vocab[unitFilter]?.words?.map((w, i) => ({...w, unitKey: unitFilter, wordIndexInUnit: i})) || []
     }
     return words
   }
@@ -824,7 +826,7 @@ function BrowseAllView({ VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashc
       <div className="browse-grid">
         {visible.map((w) => (
           <div key={w.word} className="word-chip"
-            onClick={() => onFlashcard(w.unitKey)}>
+            onClick={() => onFlashcard(w.unitKey, w.wordIndexInUnit)}>
             <img src={w.image ? (w.image.startsWith('/') ? w.image : '/' + w.image) : `/images/${w.word}.png`} alt={w.word} className="word-chip-img"
               onError={e => { e.target.style.opacity='0.2' }} />
             <span className="word-chip-name">{w.word}</span>
