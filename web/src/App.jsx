@@ -367,7 +367,7 @@ function FlashCard({ word, unitTitle, index, total, onSpeak }) {
             <span className="flashcard-word">{word.word}</span>
             <button className="icon-btn" onClick={e => { e.stopPropagation(); onSpeak(word.word) }}>🔊</button>
           </div>
-          <p className="flashcard-hint">Click to flip → See definition</p>
+          <p className="flashcard-hint">Click to flip</p>
         </div>
         <div className="flashcard-face flashcard-back">
           <div className="flashcard-definition">{word.definition}</div>
