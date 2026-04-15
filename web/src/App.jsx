@@ -108,6 +108,22 @@ const playCorrectSound = () => {
 const splitSyllables = (word, phonetic) => {
   if (!phonetic) return [{ letters: word, ipa: '' }]
 
+  // ── 多词组处理：按空格分割，递归调用 ───────────────────
+  const wordParts = word.split(' ')
+  if (wordParts.length > 1) {
+    // IPA 也按空格分割（如 /hæv ə ˈʃaʊə/ → ['hæv', 'ə', 'ˈʃaʊə']）
+    const ipaParts = phonetic.replace(/[\[\]\/]/g, '').split(/\s+/)
+    const results = []
+    for (let i = 0; i < wordParts.length; i++) {
+      const ipa = ipaParts[i] || ''
+      // 恢复斜杠格式
+      const ipaWithSlashes = ipa ? '/' + ipa + '/' : ''
+      const syllables = splitSyllables(wordParts[i], ipaWithSlashes)
+      results.push(...syllables)
+    }
+    return results
+  }
+
   const stripped = phonetic.replace(/[\[\]\/]/g, '')
 
   // ── 元音列表（按长度降序）──────────────────────────────
