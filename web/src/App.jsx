@@ -114,12 +114,38 @@ const splitSyllables = (word, phonetic) => {
     // IPA 也按空格分割（如 /hæv ə ˈʃaʊə/ → ['hæv', 'ə', 'ˈʃaʊə']）
     const ipaParts = phonetic.replace(/[\[\]\/]/g, '').split(/\s+/)
     const results = []
-    for (let i = 0; i < wordParts.length; i++) {
-      const ipa = ipaParts[i] || ''
-      // 恢复斜杠格式
-      const ipaWithSlashes = ipa ? '/' + ipa + '/' : ''
-      const syllables = splitSyllables(wordParts[i], ipaWithSlashes)
-      results.push(...syllables)
+    
+    // 如果 IPA 部分多于单词部分，需要合并多余的 IPA
+    // 例如: watch a DVD → 3个词，但 IPA 有 5 部分
+    // 需要把 DVD 对应的 IPA 部分合并
+    if (ipaParts.length > wordParts.length) {
+      const mergedIpaParts = []
+      let ipaIdx = 0
+      for (let wIdx = 0; wIdx < wordParts.length; wIdx++) {
+        // 计算当前单词需要的 IPA 部分数量
+        // 简单启发式：最后一个单词获取所有剩余的 IPA 部分
+        if (wIdx === wordParts.length - 1) {
+          // 最后一个单词：合并剩余所有 IPA
+          mergedIpaParts.push(ipaParts.slice(ipaIdx).join(' '))
+        } else {
+          mergedIpaParts.push(ipaParts[ipaIdx] || '')
+          ipaIdx++
+        }
+      }
+      for (let i = 0; i < wordParts.length; i++) {
+        const ipa = mergedIpaParts[i] || ''
+        const ipaWithSlashes = ipa ? '/' + ipa + '/' : ''
+        const syllables = splitSyllables(wordParts[i], ipaWithSlashes)
+        results.push(...syllables)
+      }
+    } else {
+      // 正常情况：IPA 部分数量等于或少于单词数量
+      for (let i = 0; i < wordParts.length; i++) {
+        const ipa = ipaParts[i] || ''
+        const ipaWithSlashes = ipa ? '/' + ipa + '/' : ''
+        const syllables = splitSyllables(wordParts[i], ipaWithSlashes)
+        results.push(...syllables)
+      }
     }
     return results
   }

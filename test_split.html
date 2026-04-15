@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Test</title></head>
+<body>
+<pre id="out"></pre>
+<script type="module">
+const VOWEL_PHONEMES = [
+  'iː','eɪ','aɪ','ɔɪ','aʊ','ɪə','eə','ʊə',
+  'ɑː','ɔː','uː','ɜː',
+  'ɪ','e','æ','ʌ','ʊ','ə','ɒ','ɔ',
+  'a','i','o','u'
+];
+
+function splitSyllables(word, phonetic) {
+  if (!phonetic) return [{ letters: word, ipa: '' }];
+  const stripped = phonetic.replace(/[\[\]\/]/g, '');
+  const vowelUnits = [];
+  let pos = 0;
+  while (pos < stripped.length) {
+    if (stripped[pos] === 'ˈ' || stripped[pos] === 'ˌ') { pos++; continue; }
+    let matched = false;
+    for (const vp of VOWEL_PHONEMES) {
+      if (stripped.slice(pos, pos + vp.length) === vp) {
+        vowelUnits.push({ ipa: vp, charPos: pos });
+        pos += vp.length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) pos++;
+  }
+  if (vowelUnits.length === 0) return [{ letters: word, ipa: '' }];
+  if (vowelUnits.length === 1) return [{ letters: word, ipa: phonetic }];
+
+  const syllableIpas = [];
+  let prevPos = 0;
+  for (let i = 1; i < vowelUnits.length; i++) {
+    const gapStart = vowelUnits[i-1].charPos + vowelUnits[i-1].ipa.length;
+    const gapEnd = vowelUnits[i].charPos;
+    const gap = stripped.slice(gapStart, gapEnd);
+    const numCons = gap.replace(/[ˈˌ]/g, '').length;
+    if (numCons <= 1) {
+      syllableIpas.push(stripped.slice(prevPos, gapStart));
+      prevPos = gapStart;
+    } else if (numCons === 2) {
+      syllableIpas.push(stripped.slice(prevPos, gapStart + 1));
+      prevPos = gapStart + 1;
+    } else {
+      syllableIpas.push(stripped.slice(prevPos, gapStart + Math.ceil(numCons / 2)));
+      prevPos = gapStart + Math.ceil(numCons / 2);
+    }
+  }
+  syllableIpas.push(stripped.slice(prevPos));
+
+  const IPA_TO_LETTERS = {
+    'ʃ': ['sh', 's', 'c', 'ch'],
+    'tʃ': ['ch', 'tch', 'tu'],
+    'dʒ': ['j', 'g', 'dg', 'ge'],
+    'ŋ': ['ng', 'n'],
+    'θ': ['th'],
+    'ð': ['th'],
+    'ʒ': ['s', 'g', 'z'],
+    'j': ['y', 'i', 'j'],
+    'r': ['r', 'wr'],
+    'w': ['w', 'u'],
+    'h': ['h'],
+    'l': ['l'],
+    'm': ['m'],
+    'n': ['n'],
+    'f': ['f', 'ph', 'gh'],
+    'v': ['v', 'f', 'ph'],
+    's': ['s', 'c', 'ss'],
+    'z': ['z', 's', 'x'],
+    'p': ['p'],
+    'b': ['b'],
+    't': ['t', 'tt', 'ed'],
+    'd': ['d', 'dd', 'ed'],
+    'k': ['k', 'c', 'ck', 'ch', 'q'],
+    'g': ['g', 'gg', 'gh'],
+    'ɡ': ['g', 'gg', 'gh'],
+    'x': ['x', 'ks'],
+    'ɸ': ['f', 'ph'],
+    'β': ['b', 'v'],
+    'ɣ': ['g', 'y'],
+  };
+  const vowelMap = {
+    'iː': ['ee', 'ea', 'ie', 'i', 'e', 'ey', 'y'],
+    'ɪ': ['i', 'y', 'e', 'u'],
+    'eɪ': ['a', 'ai', 'ay', 'ea', 'eigh', 'a_e', 'ei'],
+    'æ': ['a', 'ai'],
+    'ɑː': ['a', 'ar', 'al'],
+    'ɒ': ['o', 'a'],
+    'ɔː': ['aw', 'a', 'or', 'al', 'au'],
+    'ɔ': ['o', 'aw', 'a'],
+    'ʊ': ['oo', 'u', 'oul'],
+    'uː': ['oo', 'u', 'ou', 'ew', 'ue'],
+    'ʌ': ['u', 'o', 'ou'],
+    'ɜː': ['er', 'ir', 'ur', 'or', 'ear'],
+    'ə': [''],
+    'aʊ': ['ow', 'ou', 'ough'],
+    'əʊ': ['o', 'oa', 'ow', 'ou', 'o_e'],
+    'aɪ': ['i', 'y', 'ie', 'uy', 'eigh'],
+    'ɔɪ': ['oy', 'oi', 'uy'],
+    'ɪə': ['ear', 'ere', 'eer'],
+    'eə': ['air', 'are', 'ere', 'ayer'],
+    'ʊə': ['oor', 'our', 'ure'],
+    'a': ['a'], 'i': ['i', 'y'], 'o': ['o'], 'u': ['u', 'ou'], 'e': ['e', 'ea'],
+  };
+
+  function matchLettersToIpa(letters, pos, ipa) {
+    const clean = ipa.replace(/[ˈˌ]/g, '');
+    if (!clean) return { matched: 0, ipa: '' };
+    if (pos >= letters.length) return { matched: 0, ipa: '' };
+    // IPA辅音表
+    const cMap = IPA_TO_LETTERS;
+    if (cMap[clean]) {
+      const cands = cMap[clean].filter(c => letters.slice(pos, pos + c.length).toLowerCase() === c)
+        .sort((a, b) => b.length - a.length);
+      if (cands.length > 0) return { matched: cands[0].length, ipa: clean };
+    }
+    // 元音表
+    if (vowelMap[clean]) {
+      const cands = vowelMap[clean].filter(c => letters.slice(pos, pos + c.length).toLowerCase() === c)
+        .sort((a, b) => b.length - a.length);
+      if (cands.length > 0) return { matched: cands[0].length, ipa: clean };
+    }
+    // 单字符IPA
+    if (clean.length === 1) {
+      const fc = clean[0];
+      if ('pbtdkgfvθðszʃmnlryjwh'.includes(fc)) {
+        if (letters[pos]?.toLowerCase() === fc) return { matched: 1, ipa: fc };
+      }
+      if (vowelMap[fc]) {
+        const cands = vowelMap[fc].filter(c => letters.slice(pos, pos + c.length).toLowerCase() === c)
+          .sort((a, b) => b.length - a.length);
+        if (cands.length > 0) return { matched: cands[0].length, ipa: fc };
+      }
+    }
+    return { matched: 0, ipa: '' };
+  }
+
+  function allocateByRules(letters, syllableIpas) {
+    const result = [];
+    let lPos = 0;
+    for (let si = 0; si < syllableIpas.length; si++) {
+      const ipa = syllableIpas[si].replace(/[ˈˌ]/g, '');
+      const syllLetters = [];
+      let consumed = 0;
+      while (consumed < ipa.length && lPos < letters.length) {
+        const m = matchLettersToIpa(letters, lPos, ipa.slice(consumed));
+        if (m.matched > 0) {
+          syllLetters.push(letters.slice(lPos, lPos + m.matched));
+          lPos += m.matched;
+          consumed += m.ipa.length;
+        } else {
+          syllLetters.push(letters[lPos]);
+          lPos++;
+          consumed++;
+        }
+      }
+      while (consumed < ipa.length && lPos < letters.length) {
+        syllLetters.push(letters[lPos]);
+        lPos++;
+        consumed++;
+      }
+      result.push(syllLetters.join(''));
+    }
+    return result;
+  }
+
+  const wordLower = word.replace(/ /g, '').toLowerCase();
+  let letterSyllables = allocateByRules(wordLower, syllableIpas);
+  const totalAlloc = letterSyllables.join('').length;
+  if (totalAlloc !== wordLower.length) {
+    const ipaLengths = syllableIpas.map(ip => ip.replace(/[ˈˌ]/g, '').length);
+    const totalIpa = ipaLengths.reduce((a, b) => a + b, 0);
+    if (totalIpa > 0) {
+      let counts = ipaLengths.map(l => Math.round(l / totalIpa * wordLower.length));
+      const diff = wordLower.length - counts.reduce((a, b) => a + b, 0);
+      if (diff > 0) counts[counts.length - 1] += diff;
+      if (diff < 0) counts[counts.length - 1] += diff;
+      let wPos = 0;
+      letterSyllables.length = 0;
+      for (const cnt of counts) {
+        letterSyllables.push(wordLower.slice(wPos, wPos + cnt));
+        wPos += cnt;
+      }
+    }
+  }
+  return syllableIpas.map((ipa, i) => ({ letters: letterSyllables[i] || '', ipa: '/' + ipa + '/' }));
+}
+
+// Test cases
+const tests = [
+  // Problem words from before
+  ['headache', '/ˈhedeɪk/', 'hea|dache', 'hea|deɪk'],
+  ['treasure', '/ˈtreʒə/', 'trea|sure', 'tre|ʒə'],
+  ['Wednesday', '/ˈwenzdeɪ/', 'Wedn|esday', 'wen|zdeɪ'],
+  ['sweater', '/ˈswetə/', 'swea|ter', 'swe|tə'],
+  ['daugter', '/ˈdɔːtə/', 'daugh|ter', 'dɔː|tə'],
+  ['daughter', '/ˈdɔːtə/', 'daugh|ter', 'dɔː|tə'],
+  ['cooker', '/ˈkʊkə/', 'coo|ker', 'kʊ|kə'],
+  ['library', '/ˈlaɪbrəri/', 'lib|rary', 'laɪb|rəri'],
+  ['shoulder', '/ˈʃəʊldə/', 'shoul|der', 'ʃəʊl|də'],
+  ['strawberry', '/ˈstrɔːbəri/', 'straw|berry', 'strɔː|bəri'],
+  ['music', '/ˈmjuːzɪk/', 'mus|ic', 'mjuː|zɪk'],
+  ['university', '/ˌjuːnɪˈvɜːsəti/', 'uni|ver|si|ty', 'juː|nɪ|vɜː|səti'],
+  ['listen to music', '/ˈlɪsən tə ˈmjuːzɪk/', 'listen|to|music', 'lɪsən|tə|mjuːzɪk'],
+  ['listen to a CD', '/ˈlɪsən tə ə siː ˈdiː/', 'l|i|ste|n|to|a|CD', 'lɪ|sən|tə|ə|siː|ˈdiː'],
+  ['watch a DVD', '/wɒtʃ ə diː viː ˈdiː/', 'watch|a|DVD', 'wɒtʃ|ə|diː|viː|ˈdiː'],
+  ['go skating', '/ɡəʊ ˈskeɪtɪŋ/', 'go|skating', 'ɡəʊ|ˈskeɪtɪŋ'],
+  ['text', '/tekst/', 'text', 'tekst'],
+  ['frightened', '/ˈfraɪtnd/', 'fright|ened', 'fraɪtnd'],
+  ['jump', '/dʒʌmp/', 'jump', 'dʒʌmp'],
+  ['cold', '/kəʊld/', 'cold', 'kəʊld'],
+  ['fly', '/flaɪ/', 'fly', 'flaɪ'],
+  ['world', '/wɜːld/', 'world', 'wɜːld'],
+  ['cough', '/kɒf/', 'cough', 'kɒf'],
+  ['threw', '/θruː/', 'threw', 'θruː'],
+  ['caught', '/kɔːt/', 'caught', 'kɔːt'],
+  ['taught', '/tɔːt/', 'taught', 'tɔːt'],
+  ['moustache', '/məˈstɑːʃ/', 'mou|stache', 'məˈ|stɑːʃ'],
+  ['skipped', '/skɪpt/', 'skipped', 'skɪpt'],
+  ['science', '/ˈsaɪəns/', 'sci|ence', 'saɪ|əns'],
+  ['scissors', '/ˈsɪzəz/', 'scis|sors', 'sɪ|zəz'],
+  ['sand castle', '/sænd ˈkɑːsəl/', 'sand|castle', 'sænd|ˈkɑːsəl'],
+  ['world tour', '/wɜːld tʊə/', 'world|tour', 'wɜːld|tʊə'],
+];
+
+let out = '';
+let pass = 0, fail = 0;
+for (const [word, phonetic, expected, ipaExpected] of tests) {
+  const result = splitSyllables(word, phonetic);
+  const gotLetters = result.map(s => s.letters).join('|');
+  const gotIpa = result.map(s => s.ipa).join('|');
+  const allMatch = gotLetters === expected;
+  const status = allMatch ? '✓' : '✗';
+  if (allMatch) pass++; else fail++;
+  out += `${status} ${word.padEnd(20)} ${phonetic}\n`;
+  out += `  expected: ${expected}\n`;
+  out += `  got:      ${gotLetters}\n`;
+  if (!allMatch) out += `  ipa:      ${gotIpa}\n`;
+  out += `\n`;
+}
+document.getElementById('out').textContent = out + `\nPass: ${pass}, Fail: ${fail}`;
+</script>
+</body>
+</html>
