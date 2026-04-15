@@ -796,7 +796,7 @@ export default function App() {
               <div key={key} className={`unit-card ${done ? 'done' : ''}`}
                 style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
                 <div className="unit-key-row">
-                  <span className="unit-card-key">{key.replace('pu3u', 'PU3U').replace('pu2u', 'PU2U')}</span>
+                  <span className="unit-card-key">{key.replace('pu3u', 'PU3U').replace('pu2u', 'PU2U').replace('pu1u', 'PU1U')}</span>
                   {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
                 </div>
                 <div className="unit-title-row">
@@ -878,10 +878,11 @@ export default function App() {
               </div>
               <h2 className="course-title">{course.title}</h2>
               <p className="course-subtitle">{course.subtitle}</p>
+              <br/>
               {!course.locked && (
                 <div className="course-units-preview">
                   {course.units.slice(0,3).map(u => (
-                    <span key={u} className="unit-chip">{u.replace('pu2u', 'PU2U').replace('pu3u', 'PU3U')}</span>
+                    <span key={u} className="unit-chip">{u.replace('pu1u', 'PU1U').replace('pu2u', 'PU2U').replace('pu3u', 'PU3U')}</span>
                   ))}
                   {course.units.length > 3 && <span className="unit-chip muted">+{course.units.length-3} more</span>}
                 </div>
