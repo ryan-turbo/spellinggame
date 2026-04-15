@@ -363,7 +363,7 @@ function FlashCard({ word, unitTitle, index, total, onSpeak }) {
 }
 
 // ─── 字母输入框组件（音节分组版）──────────────────────
-function LetterInput({ word, phonetic, onDone, disabled }) {
+function LetterInput({ word, phonetic, onDone, disabled, vals, setVals }) {
   const syllables = splitSyllables(word, phonetic)
 
   // 展平为各字母的元数据
@@ -376,12 +376,10 @@ function LetterInput({ word, phonetic, onDone, disabled }) {
   })
   const total = flat.length
 
-  const [vals, setVals] = useState(Array(total).fill(''))
   const inputsRef = useRef([])
 
-  // 每次换题时重置并聚焦
+  // 每次换题时聚焦
   useEffect(() => {
-    setVals(Array(total).fill(''))
     const t = setTimeout(() => inputsRef.current[0]?.focus(), 80)
     return () => clearTimeout(t)
   }, [word])
@@ -464,6 +462,7 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   const [hintLevel, setHintLevel] = useState(0)
   const [wordResults, setWordResults] = useState([]) // [{word, correct}]
   const [submitted, setSubmitted] = useState(false) // 已提交过正确答案，等待 Enter 下一题
+  const [inputVals, setInputVals] = useState([]) // LetterInput 的当前输入
   const w = queue[current]
 
   useEffect(() => {
@@ -475,19 +474,31 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   useEffect(() => {
     setFeedback(null)
     setSubmitted(false)
-  }, [current])
+    setInputVals(Array(w.word.length).fill(''))
+  }, [current, w.word])
 
-  // 回车键：submitted=true 表示刚答对等待Enter；否则检查答案
+  // 回车键：直接检查当前输入是否正确
   const handleEnter = useCallback((e) => {
     if (e.key === 'Enter') {
-      if (submitted) {
-        setSubmitted(false)
-        setFeedback(null)
-        if (current + 1 >= queue.length) setFinished(true)
-        else { setCurrent(c => c + 1); setHintLevel(0) }
+      const typed = inputVals.join('')
+      // 输入完整且正确 → 下一题
+      if (typed.length === w.word.length && typed.toLowerCase() === w.word.toLowerCase()) {
+        if (!submitted) {
+          // 首次答对：计分
+          setFeedback('correct')
+          setScore(s => s + 1)
+          setWordResults(r => [...r, { word: w.word, correct: true }])
+          setSubmitted(true)
+          playCorrectSound()
+        }
+        // 已答对过 → 切题
+        setTimeout(() => {
+          if (current + 1 >= queue.length) setFinished(true)
+          else { setCurrent(c => c + 1); setHintLevel(0); setInputVals([]) }
+        }, 400)
       }
     }
-  }, [submitted, current, queue.length])
+  }, [inputVals, w.word, submitted, current, queue.length])
 
   useEffect(() => {
     window.addEventListener('keydown', handleEnter)
@@ -500,7 +511,7 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
       setFeedback('correct')
       setScore(s => s + 1)
       setWordResults(r => [...r, { word: w.word, correct: true }])
-      setSubmitted(true) // 标记已答对，等待用户按 Enter
+      setSubmitted(true)
       playCorrectSound()
     } else {
       setFeedback('wrong')
@@ -513,7 +524,7 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
     speak(w.word)
     setTimeout(() => {
       if (current + 1 >= queue.length) setFinished(true)
-      else { setCurrent(c => c + 1); setHintLevel(0); setSubmitted(false) }
+      else { setCurrent(c => c + 1); setHintLevel(0); setSubmitted(false); setInputVals([]) }
     }, 1800)
   }
 
@@ -574,7 +585,7 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
         🔊 Listen Again
       </button>
 
-      <LetterInput word={w.word} phonetic={w.phonetic} onDone={handleDone} disabled={feedback === 'correct'} />
+      <LetterInput word={w.word} phonetic={w.phonetic} onDone={handleDone} disabled={feedback === 'correct'} vals={inputVals} setVals={setInputVals} />
 
       <div className="spell-actions">
         <button className="btn btn-hint" onClick={() => setHintLevel(h => Math.min(h + 1, 2))} disabled={hintLevel === 2}>
