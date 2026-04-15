@@ -193,7 +193,7 @@ export const PU3_VOCAB = {
       { word: "tent", phonetic: "/tent/", chinese: "", definition: "A shelter made of cloth supported by poles.", audio: "tent.mp3", image: "images/tent.png", has_image: true },
       { word: "tour", phonetic: "/tʊə/", chinese: "", definition: "A short visit around a place.", audio: "tour.mp3", image: "images/tour.png", has_image: true },
       { word: "sand castle", phonetic: "/sænd ˈkɑːsəl/", chinese: "", definition: "A pile of sand made to look like a castle.", audio: "sand_castle.mp3", image: "images/sand_castle.png", has_image: true },
-      { word: "suit case", phonetic: "/ˈsuːtkeɪs/", chinese: "", definition: "A box with a handle for carrying clothes when you travel.", audio: "suit_case.mp3", image: "images/suit_case.png", has_image: true },
+      { word: "suitcase", phonetic: "/ˈsuːtkeɪs/", chinese: "", definition: "A box with a handle for carrying clothes when you travel.", audio: "suit_case.mp3", image: "images/suit_case.png", has_image: true },
       { word: "pack", phonetic: "/pæk/", chinese: "", definition: "To put things into a bag or box.", audio: "pack.mp3", image: "images/pack.png", has_image: true },
       { word: "pyjamas", phonetic: "/pəˈdʒɑːməz/", chinese: "", definition: "Clothes you wear to sleep.", audio: "pyjamas.mp3", image: "images/pyjamas.png", has_image: true },
     ],
