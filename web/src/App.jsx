@@ -100,33 +100,29 @@ const playCorrectSound = () => {
   } catch {}
 }
 
-// ─── 音节分组建构（IPA元音扫描 + 字母分配）────────────
+// ─── 音节分组建构（辅音边界切分 + 元音感知分配）─────────
 /**
- * 将单词按音节拆分成数组，每项含 letters（字母组）和 ipa（对应IPA音标片段）
+ * 将单词按音节拆分成 [{letters, ipa}] 数组
+ * 核心：先找 IPA 元音边界切分 IPA；再用"辅音字母组优先"策略切分字母
  */
 const splitSyllables = (word, phonetic) => {
-  if (!phonetic) {
-    return [{ letters: word, ipa: '' }]
-  }
+  if (!phonetic) return [{ letters: word, ipa: '' }]
 
-  // 提取IPA音标内容（去掉方括号和斜杠）
   const stripped = phonetic.replace(/[\[\]\/]/g, '')
-  // 元音音素列表（按长度降序，防止 'iː' 被 'i' 优先匹配）
-  // 注意：IPA 有时用普通字母 i/a/u 而非音标符号 ɪ/ɑ/ʊ
-  // 双字母音标必须排在单字母前面！
+
+  // ── 元音列表（按长度降序）──────────────────────────────
   const VOWEL_PHONEMES = [
-    'iː','eɪ','aɪ','ɔɪ','aʊ','ɪə','eə','ʊə', // 双字符优先
-    'ɑː','ɔː','uː','ɜː', // 带ː的
-    'ɪ','e','æ','ʌ','ʊ','ə','ɒ','ɔ', // 单字符音标
-    'a','i','o','u' // 普通字母（最后匹配）
+    'iː','eɪ','aɪ','ɔɪ','aʊ','ɪə','eə','ʊə',
+    'ɑː','ɔː','uː','ɜː',
+    'ɪ','e','æ','ʌ','ʊ','ə','ɒ','ɔ',
+    'a','i','o','u'
   ]
 
-  // 扫描IPA，提取每个元音及其位置（跳过重音标记 ˈ ˌ）
+  // ── 扫描 IPA，提取元音位置 ───────────────────────────
   const vowelUnits = [] // [{ipa, charPos}]
   let pos = 0
   while (pos < stripped.length) {
-    const ch = stripped[pos]
-    if (ch === 'ˈ' || ch === 'ˌ') { pos++; continue } // 跳过重音标记
+    if (stripped[pos] === 'ˈ' || stripped[pos] === 'ˌ') { pos++; continue }
     let matched = false
     for (const vp of VOWEL_PHONEMES) {
       if (stripped.slice(pos, pos + vp.length) === vp) {
@@ -136,75 +132,197 @@ const splitSyllables = (word, phonetic) => {
         break
       }
     }
-    if (!matched) pos++ // 辅音跳过
+    if (!matched) pos++
   }
 
   if (vowelUnits.length === 0) return [{ letters: word, ipa: '' }]
   if (vowelUnits.length === 1) return [{ letters: word, ipa: phonetic }]
 
-  // 把IPA按音节切成音节IPA片段
-  // 使用 onset maximization：两个元音之间的辅音群归后一个音节
-  // 除非辅音群前紧贴元音且后紧贴元音，此时辅音群中间切分（如 nk → n归前 k归后）
+  // ── 第一步：按元音边界切分 IPA ──────────────────────────
   const syllableIpas = []
   let prevPos = 0
   for (let i = 1; i < vowelUnits.length; i++) {
     const gapStart = vowelUnits[i - 1].charPos + vowelUnits[i - 1].ipa.length
     const gapEnd = vowelUnits[i].charPos
-    const gap = stripped.slice(gapStart, gapEnd).replace(/[ˈˌ]/g, '')
+    const gap = stripped.slice(gapStart, gapEnd)
+    const numCons = gap.replace(/[ˈˌ]/g, '').length
 
-    if (gap.length <= 1) {
-      // 0-1个辅音：全部归后一个音节（onset maximization）
+    if (numCons === 0) {
+      syllableIpas.push(stripped.slice(prevPos, gapStart + 1))
+      prevPos = gapStart + 1
+    } else if (numCons === 1) {
       syllableIpas.push(stripped.slice(prevPos, gapStart))
       prevPos = gapStart
-    } else if (gap.length === 2) {
-      // 2个辅音：第一个归前，第二个归后（如 -kt-, -nd- 等）
-      const splitAt = gapStart + gap[0].length + (stripped[gapStart] === 'ˈ' || stripped[gapStart] === 'ˌ' ? 1 : 0)
-      syllableIpas.push(stripped.slice(prevPos, splitAt))
-      prevPos = splitAt
+    } else if (numCons === 2) {
+      syllableIpas.push(stripped.slice(prevPos, gapStart + 1))
+      prevPos = gapStart + 1
     } else {
-      // 3+辅音：中间切，前半归前音节，后半归后音节
-      const half = Math.ceil(gap.length / 2)
-      // 计算实际切分位置（需要考虑重音标记占位）
-      let actualSplit = gapStart
-      let count = 0
-      while (actualSplit < gapEnd && count < half) {
-        if (stripped[actualSplit] !== 'ˈ' && stripped[actualSplit] !== 'ˌ') count++
-        actualSplit++
-      }
-      syllableIpas.push(stripped.slice(prevPos, actualSplit))
-      prevPos = actualSplit
+      syllableIpas.push(stripped.slice(prevPos, gapStart + Math.ceil(numCons / 2)))
+      prevPos = gapStart + Math.ceil(numCons / 2)
     }
   }
-  syllableIpas.push(stripped.slice(prevPos)) // 最后一节
+  syllableIpas.push(stripped.slice(prevPos))
 
-  // 按 IPA 各音节长度比例分配字母（更准确的音节划分）
-  const n = syllableIpas.length
-  const ipaLengths = syllableIpas.map(ipa => ipa.replace(/[ˈˌ]/g, '').length)
-  const totalIpaLen = ipaLengths.reduce((a, b) => a + b, 0)
-
-  // 计算每个音节应分配的字母数（按 IPA 长度比例）
-  let letterCounts = ipaLengths.map(len => Math.round(len / totalIpaLen * word.length))
-  // 调整确保总和等于 word.length
-  const diff = word.length - letterCounts.reduce((a, b) => a + b, 0)
-  if (diff > 0) {
-    // 少了，给最后一个音节补
-    letterCounts[letterCounts.length - 1] += diff
-  } else if (diff < 0) {
-    // 多了，从最后一个音节减
-    letterCounts[letterCounts.length - 1] += diff
+  // ── 后处理：合并纯辅音首音节 ─────────────────────────
+  // 如果第一个音节 IPA 开头是辅音（如 Wednesday /ˈwenzdeɪ/ → "wedn|"esday）
+  // 将其合并到第二个音节（更符合视觉习惯）
+  const consonantPattern = /^[bcdfgjklmnpqrstvwxyzʃʒθðŋxɣɡ]+$/i
+  if (syllableIpas.length >= 2 && consonantPattern.test(syllableIpas[0])) {
+    syllableIpas[1] = syllableIpas[0] + syllableIpas[1]
+    syllableIpas.shift()
   }
 
-  // 按分配结果构造音节
-  const result = []
-  let wPos = 0
-  syllableIpas.forEach((ipa, i) => {
-    const letters = word.slice(wPos, wPos + letterCounts[i])
-    wPos += letterCounts[i]
-    result.push({ letters, ipa: '/' + ipa + '/' })
-  })
+  // ── 第二步：辅音字母组边界切分字母 ─────────────────────
+  // IPA 辅音映射表：字母/digraph → IPA（字母→IPA，用于从字母串中匹配 IPA）
+  // 注意：同一 IPA 可能对应多个字母组合（如 k=c/k/ck/ch）
+  const CONSONANT_MAP = [
+    // 双字母 digraph
+    { letters: 'sh', ipa: 'ʃ' }, { letters: 'ch', ipa: 'tʃ' }, { letters: 'th', ipa: 'θ' },
+    { letters: 'ph', ipa: 'f' }, { letters: 'wh', ipa: 'w' }, { letters: 'wr', ipa: 'r' },
+    { letters: 'kn', ipa: 'n' }, { letters: 'ng', ipa: 'ŋ' }, { letters: 'ck', ipa: 'k' },
+    { letters: 'sc', ipa: 's' }, { letters: 'gh', ipa: '' }, // gh 不发音（night）或发 f（laugh）
+    { letters: 'mb', ipa: 'm' }, // mb 尾 m（climb）
+    // 单辅音
+    { letters: 'b', ipa: 'b' }, { letters: 'c', ipa: 'k' }, { letters: 'd', ipa: 'd' },
+    { letters: 'f', ipa: 'f' }, { letters: 'g', ipa: 'ɡ' }, { letters: 'h', ipa: 'h' },
+    { letters: 'j', ipa: 'dʒ' }, { letters: 'k', ipa: 'k' }, { letters: 'l', ipa: 'l' },
+    { letters: 'm', ipa: 'm' }, { letters: 'n', ipa: 'n' }, { letters: 'p', ipa: 'p' },
+    { letters: 'qu', ipa: 'kw' }, { letters: 'r', ipa: 'r' }, { letters: 's', ipa: 's' },
+    { letters: 't', ipa: 't' }, { letters: 'v', ipa: 'v' }, { letters: 'w', ipa: 'w' },
+    { letters: 'x', ipa: 'ks' }, { letters: 'y', ipa: 'j' }, { letters: 'z', ipa: 'z' },
+  ]
 
-  return result
+  /**
+   * 在字母串 l[pos] 位置，尝试匹配一个 IPA 音素
+   * @returns {{consumedIpa: number, consumedLetter: number}}
+   */
+  function matchOne(letters, pos, ipa) {
+    if (pos >= letters.length || ipa.length === 0) return { consumedIpa: 0, consumedLetter: 0 }
+
+    // 1. 辅音 digraph + 单辅音（优先最长匹配）
+    for (const { letters: dl, ipa: di } of CONSONANT_MAP) {
+      if (letters.slice(pos, pos + dl.length).toLowerCase() === dl) {
+        if (di === '') {
+          // 不发辅音：跳过字母，不消耗 IPA（gh）
+          return { consumedIpa: 0, consumedLetter: dl.length }
+        }
+        if (ipa.startsWith(di)) {
+          return { consumedIpa: di.length, consumedLetter: dl.length }
+        }
+        // IPA 以辅音开头但 digraph 不匹配？按单辅音处理（末尾字母）
+        // 例：IPA "t" vs 字母 "ck" → ck 不发 k 音，按 c=IPA k 不匹配
+      }
+    }
+
+    // 2. 元音字母 → IPA
+    const lc = letters[pos]
+    if ('aeiouy'.includes(lc)) {
+      // 按"字母序列 vs IPA序列"贪心匹配
+      const vowelCombos = [
+        // 双字母元音
+        { letters: 'ou', ipa: ['aʊ', 'əʊ', 'ʌ'] },
+        { letters: 'ow', ipa: ['aʊ', 'əʊ'] },
+        { letters: 'oo', ipa: ['uː', 'ʊ'] },
+        { letters: 'ee', ipa: ['iː'] },
+        { letters: 'ea', ipa: ['iː', 'e', 'eɪ'] },
+        { letters: 'ai', ipa: ['eɪ'] }, { letters: 'ay', ipa: ['eɪ'] },
+        { letters: 'oy', ipa: ['ɔɪ'] }, { letters: 'oi', ipa: ['ɔɪ'] },
+        { letters: 'ie', ipa: ['aɪ', 'iː'] },
+        { letters: 'au', ipa: ['ɔː'] }, { letters: 'aw', ipa: ['ɔː'] },
+        { letters: 'ey', ipa: ['eɪ'] }, { letters: 'ei', ipa: ['eɪ'] },
+        // r 组合
+        { letters: 'ar', ipa: ['ɑː', 'ɒ'] },
+        { letters: 'or', ipa: ['ɔː', 'ɜː'] },
+        { letters: 'er', ipa: ['ɜː'] },
+        { letters: 'ir', ipa: ['ɜː'] }, { letters: 'ur', ipa: ['ɜː'] },
+        { letters: 'ear', ipa: ['ɪə', 'ɜː'] }, { letters: 'air', ipa: ['eə'] },
+        { letters: 'ere', ipa: ['ɪə', 'eə'] }, { letters: 'are', ipa: ['eə'] },
+        { letters: 'oor', ipa: ['ɔː'] }, { letters: 'our', ipa: ['ɔː', 'ʊə'] },
+        // 单元音（最末）
+        { letters: 'a', ipa: ['ɑː', 'æ', 'ɒ', 'eɪ'] },
+        { letters: 'e', ipa: ['e'] }, // 不含 eɪ！避免 ea 匹配 eɪ
+        { letters: 'i', ipa: ['ɪ', 'aɪ', 'iː'] },
+        { letters: 'o', ipa: ['ɒ', 'əʊ', 'ʌ'] },
+        { letters: 'u', ipa: ['ʌ', 'ʊ', 'uː', 'ə'] },
+        { letters: 'y', ipa: ['ɪ', 'aɪ'] }, // y as vowel
+      ]
+      for (const { letters: vl, ipa: va } of vowelCombos) {
+        if (letters.slice(pos, pos + vl.length).toLowerCase() === vl) {
+          for (const ipaSeq of va) {
+            if (ipa.startsWith(ipaSeq)) {
+              return { consumedIpa: ipaSeq.length, consumedLetter: vl.length }
+            }
+          }
+        }
+      }
+    }
+
+    // 3. IPA 剩余但字母耗尽：继续消耗 IPA（尾部不发音的 IPA）
+    // 4. IPA 以辅音开头但无字母匹配：跳过 IPA 一个字符
+    return { consumedIpa: 1, consumedLetter: 0 }
+  }
+
+  /**
+   * 将字母串按 IPA 片段分配
+   */
+  function allocateLetters(letters, syllableIpas) {
+    const result = []
+    let lPos = 0
+
+    for (let si = 0; si < syllableIpas.length; si++) {
+      const ipa = syllableIpas[si].replace(/[ˈˌ]/g, '')
+      let syllLetters = ''
+      let iPos = 0
+
+      while (iPos < ipa.length && lPos < letters.length) {
+        const { consumedIpa, consumedLetter } = matchOne(letters, lPos, ipa.slice(iPos))
+        if (consumedLetter > 0) {
+          syllLetters += letters.slice(lPos, lPos + consumedLetter)
+          lPos += consumedLetter
+        }
+        iPos += consumedIpa
+      }
+
+      // IPA 耗尽但还有字母：全部归此音节（吞掉剩余字母）
+      if (iPos >= ipa.length && lPos < letters.length) {
+        syllLetters += letters.slice(lPos)
+        lPos = letters.length
+      }
+
+      result.push(syllLetters)
+    }
+
+    return result
+  }
+
+  const wordLower = word.replace(/ /g, '').toLowerCase()
+  let letterSyllables = allocateLetters(wordLower, syllableIpas)
+
+  // 兜底：若规则分配总量不对，用比例法
+  const totalAllocated = letterSyllables.join('').length
+  if (totalAllocated !== wordLower.length) {
+    const ipaLengths = syllableIpas.map(ip => ip.replace(/[ˈˌ]/g, '').length)
+    const totalIpa = ipaLengths.reduce((a, b) => a + b, 0)
+    if (totalIpa > 0) {
+      let counts = ipaLengths.map(l => Math.round(l / totalIpa * wordLower.length))
+      const diff = wordLower.length - counts.reduce((a, b) => a + b, 0)
+      if (diff > 0) counts[counts.length - 1] += diff
+      if (diff < 0) counts[counts.length - 1] += diff
+      let wPos = 0
+      letterSyllables.length = 0
+      for (const cnt of counts) {
+        letterSyllables.push(wordLower.slice(wPos, wPos + cnt))
+        wPos += cnt
+      }
+    }
+  }
+
+  return syllableIpas.map((ipa, i) => ({
+    letters: letterSyllables[i] || '',
+    ipa: '/' + ipa + '/'
+  }))
 }
+
 
 // ─── 通用工具 ──────────────────────────────────────────
 const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
