@@ -315,10 +315,13 @@ const splitSyllables = (word, phonetic) => {
   const wordLower = word.replace(/ /g, '').toLowerCase()
   let letterSyllables = allocateLetters(wordLower, syllableIpas)
 
-  // 兜底：若规则分配总量不对，用比例法
+  // 检查分配是否合理：如果某音节字母数 > IPA字符数的2倍，可能匹配错误
+  const ipaLengths = syllableIpas.map(ip => ip.replace(/[ˈˌ]/g, '').length)
+  const needsFallback = letterSyllables.some((s, i) => s.length > ipaLengths[i] * 2 + 1)
+
+  // 兜底：若规则分配总量不对，或分配不合理，用比例法
   const totalAllocated = letterSyllables.join('').length
-  if (totalAllocated !== wordLower.length) {
-    const ipaLengths = syllableIpas.map(ip => ip.replace(/[ˈˌ]/g, '').length)
+  if (totalAllocated !== wordLower.length || needsFallback) {
     const totalIpa = ipaLengths.reduce((a, b) => a + b, 0)
     if (totalIpa > 0) {
       let counts = ipaLengths.map(l => Math.round(l / totalIpa * wordLower.length))
@@ -326,7 +329,7 @@ const splitSyllables = (word, phonetic) => {
       if (diff > 0) counts[counts.length - 1] += diff
       if (diff < 0) counts[counts.length - 1] += diff
       let wPos = 0
-      letterSyllables.length = 0
+      letterSyllables = []
       for (const cnt of counts) {
         letterSyllables.push(wordLower.slice(wPos, wPos + cnt))
         wPos += cnt
