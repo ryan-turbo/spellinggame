@@ -349,11 +349,13 @@ body {
 
 /* ─── Banner 图片 ───────────────────────────────────── */
 .home-banner {
-  width: 100%;
+  width: 50%;
   height: auto;
   display: block;
   margin-top: 24px;
   border-radius: 12px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* ─── 课程卡片网格 ─────────────────────────────────── */
