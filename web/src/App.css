@@ -336,6 +336,17 @@ body {
   color: var(--primary);
 }
 
+/* ─── 联系方式 ─────────────────────────────────────── */
+.home-contact-info {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--text-soft);
+  margin-bottom: 20px;
+  padding: 8px;
+  background: rgba(91,141,238,.08);
+  border-radius: 8px;
+}
+
 /* ─── 课程卡片网格 ─────────────────────────────────── */
 .course-grid {
   display: grid;
