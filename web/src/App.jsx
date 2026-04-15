@@ -350,7 +350,6 @@ const saveProgress = p => localStorage.setItem('pu2_progress', JSON.stringify(p)
 
 // ─── 闪卡组件 ──────────────────────────────────────────
 function FlashCard({ word, unitTitle, index, total, onSpeak }) {
-  const [flipped, setFlipped] = useState(false)
   const imgSrc = word.image ? (word.image.startsWith('/') ? word.image : '/' + word.image) : `/images/${word.word}.png`
 
   return (
@@ -359,20 +358,15 @@ function FlashCard({ word, unitTitle, index, total, onSpeak }) {
         <span className="flashcard-unit">{unitTitle}</span>
         <span className="flashcard-counter">{index + 1} / {total}</span>
       </div>
-      <div className={`flashcard ${flipped ? 'flipped' : ''}`} onClick={() => setFlipped(f => !f)}>
-        <div className="flashcard-face flashcard-front">
-          <img src={imgSrc} alt={word.word} className="flashcard-img"
-            onError={e => { e.target.style.display = 'none' }} />
-          <div className="flashcard-word-row">
-            <span className="flashcard-word">{word.word}</span>
-            <button className="icon-btn" onClick={e => { e.stopPropagation(); onSpeak(word.word) }}>🔊</button>
-          </div>
-          <p className="flashcard-hint">Click to flip</p>
+      <div className="flashcard-simple">
+        <img src={imgSrc} alt={word.word} className="flashcard-img"
+          onError={e => { e.target.style.display = 'none' }} />
+        <div className="flashcard-word-row">
+          <span className="flashcard-word">{word.word}</span>
+          <button className="icon-btn" onClick={() => onSpeak(word.word)}>🔊</button>
         </div>
-        <div className="flashcard-face flashcard-back">
-          <div className="flashcard-definition">{word.definition}</div>
-          <div className="flashcard-phonetic">{word.phonetic}</div>
-        </div>
+        <div className="flashcard-phonetic">{word.phonetic}</div>
+        <div className="flashcard-definition">{word.definition}</div>
       </div>
     </div>
   )
