@@ -856,6 +856,7 @@ export default function App() {
           }}
         />
       ) : (
+        <>
         <div className="course-grid">
           {COURSES.map(course => (
             <div
@@ -887,6 +888,10 @@ export default function App() {
             </div>
           ))}
         </div>
+
+        {/* Banner */}
+        <img src="/images/banner.png" alt="" className="home-banner" />
+        </>
       )}
 
       {/* 联系方式 */}

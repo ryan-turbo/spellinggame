@@ -347,6 +347,15 @@ body {
   border-radius: 8px;
 }
 
+/* ─── Banner 图片 ───────────────────────────────────── */
+.home-banner {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 24px;
+  border-radius: 12px;
+}
+
 /* ─── 课程卡片网格 ─────────────────────────────────── */
 .course-grid {
   display: grid;
