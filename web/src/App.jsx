@@ -839,11 +839,6 @@ export default function App() {
         <button className="home-nav-tab" onClick={() => setShowStats(true)}>🏆 My Progress</button>
       </div>
 
-      {/* 联系方式 */}
-      <div className="home-contact-info">
-        bug feedback/班级群，请加微信：sugarbomb2017
-      </div>
-
       {homeView === 'browse' ? (
         <BrowseAllView
           VOCAB={VOCAB}
@@ -893,6 +888,11 @@ export default function App() {
           ))}
         </div>
       )}
+
+      {/* 联系方式 */}
+      <div className="home-contact-info">
+        bug feedback/班级群，请加微信：sugarbomb2017
+      </div>
     </div>
   )
 }
