@@ -157,17 +157,18 @@ const splitSyllables = (word, phonetic) => {
       syllableIpas.push(stripped.slice(prevPos, gapStart + 1))
       prevPos = gapStart + 1
     } else {
-      syllableIpas.push(stripped.slice(prevPos, gapStart + Math.ceil(numCons / 2)))
-      prevPos = gapStart + Math.ceil(numCons / 2)
+      // 3+ 个辅音：第一辅音归前音节，其余归后音节（onset maximization）
+      syllableIpas.push(stripped.slice(prevPos, gapStart + 1))
+      prevPos = gapStart + 1
     }
   }
   syllableIpas.push(stripped.slice(prevPos))
 
-  // ── 后处理：合并纯辅音首音节 ─────────────────────────
-  // 如果第一个音节 IPA 开头是辅音（如 Wednesday /ˈwenzdeɪ/ → "wedn|"esday）
-  // 将其合并到第二个音节（更符合视觉习惯）
-  const consonantPattern = /^[bcdfgjklmnpqrstvwxyzʃʒθðŋxɣɡ]+$/i
-  if (syllableIpas.length >= 2 && consonantPattern.test(syllableIpas[0])) {
+  // ── 后处理：若首个音节 IPA 无元音音素（如 "wedn|esday" 中的 "wedn"）
+  // 则合并到下一音节（确保首音节有元音支撑字母分配）
+  const vowelPhonemes = ['iː','eɪ','aɪ','ɔɪ','aʊ','ɪə','eə','ʊə','ɑː','ɔː','uː','ɜː','ɪ','e','æ','ʌ','ʊ','ə','ɒ','ɔ','a','i','o','u']
+  const hasVowel = (ipa) => vowelPhonemes.some(v => ipa.includes(v))
+  if (syllableIpas.length >= 2 && !hasVowel(syllableIpas[0])) {
     syllableIpas[1] = syllableIpas[0] + syllableIpas[1]
     syllableIpas.shift()
   }
@@ -257,9 +258,9 @@ const splitSyllables = (word, phonetic) => {
       }
     }
 
-    // 3. IPA 剩余但字母耗尽：继续消耗 IPA（尾部不发音的 IPA）
-    // 4. IPA 以辅音开头但无字母匹配：跳过 IPA 一个字符
-    return { consumedIpa: 1, consumedLetter: 0 }
+    // 3. 无法匹配：字母和 IPA 各消耗 1 字符（对齐错位）
+    // 例如 Wednesday: 字母 'd' 无法匹配 IPA 'n'，各跳过 1 字符继续
+    return { consumedIpa: 1, consumedLetter: 1 }
   }
 
   /**
@@ -283,8 +284,8 @@ const splitSyllables = (word, phonetic) => {
         iPos += consumedIpa
       }
 
-      // IPA 耗尽但还有字母：全部归此音节（吞掉剩余字母）
-      if (iPos >= ipa.length && lPos < letters.length) {
+      // 仅最后一个音节：吞掉所有剩余字母
+      if (si === syllableIpas.length - 1 && lPos < letters.length) {
         syllLetters += letters.slice(lPos)
         lPos = letters.length
       }
@@ -378,9 +379,11 @@ function LetterInput({ word, phonetic, onDone, disabled }) {
   const [vals, setVals] = useState(Array(total).fill(''))
   const inputsRef = useRef([])
 
-  // 每次换题时重置
+  // 每次换题时重置并聚焦
   useEffect(() => {
     setVals(Array(total).fill(''))
+    const t = setTimeout(() => inputsRef.current[0]?.focus(), 80)
+    return () => clearTimeout(t)
   }, [word])
 
   // 禁用解除后自动聚焦
@@ -460,6 +463,7 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   const [finished, setFinished] = useState(false)
   const [hintLevel, setHintLevel] = useState(0)
   const [wordResults, setWordResults] = useState([]) // [{word, correct}]
+  const [submitted, setSubmitted] = useState(false) // 已提交过正确答案，等待 Enter 下一题
   const w = queue[current]
 
   useEffect(() => {
@@ -467,14 +471,23 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
     return () => clearTimeout(t)
   }, [current, w.word])
 
-  // 回车键：答对后按 Enter 进入下一题
+  // 切题时重置状态
+  useEffect(() => {
+    setFeedback(null)
+    setSubmitted(false)
+  }, [current])
+
+  // 回车键：submitted=true 表示刚答对等待Enter；否则检查答案
   const handleEnter = useCallback((e) => {
-    if (e.key === 'Enter' && feedback === 'correct') {
-      setFeedback(null)
-      if (current + 1 >= queue.length) setFinished(true)
-      else { setCurrent(c => c + 1); setHintLevel(0) }
+    if (e.key === 'Enter') {
+      if (submitted) {
+        setSubmitted(false)
+        setFeedback(null)
+        if (current + 1 >= queue.length) setFinished(true)
+        else { setCurrent(c => c + 1); setHintLevel(0) }
+      }
     }
-  }, [feedback, current, queue.length])
+  }, [submitted, current, queue.length])
 
   useEffect(() => {
     window.addEventListener('keydown', handleEnter)
@@ -487,8 +500,8 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
       setFeedback('correct')
       setScore(s => s + 1)
       setWordResults(r => [...r, { word: w.word, correct: true }])
+      setSubmitted(true) // 标记已答对，等待用户按 Enter
       playCorrectSound()
-      // 不自动下一题，等待按 Enter
     } else {
       setFeedback('wrong')
       setWordResults(r => [...r, { word: w.word, correct: false }])
@@ -500,7 +513,7 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
     speak(w.word)
     setTimeout(() => {
       if (current + 1 >= queue.length) setFinished(true)
-      else { setCurrent(c => c + 1); setHintLevel(0) }
+      else { setCurrent(c => c + 1); setHintLevel(0); setSubmitted(false) }
     }, 1800)
   }
 
