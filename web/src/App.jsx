@@ -497,8 +497,9 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   const handleEnter = useCallback((e) => {
     if (e.key === 'Enter') {
       const typed = inputVals.join('')
+      const expected = w.word.replace(/ /g, '')
       // 输入完整且正确 → 下一题
-      if (typed.length === w.word.length && typed.toLowerCase() === w.word.toLowerCase()) {
+      if (typed.length === expected.length && typed.toLowerCase() === expected.toLowerCase()) {
         if (!submitted) {
           // 首次答对：计分
           setFeedback('correct')
@@ -522,7 +523,8 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   }, [handleEnter])
 
   const handleDone = useCallback((typed) => {
-    const correct = typed.toLowerCase() === w.word.toLowerCase()
+    const expected = w.word.replace(/ /g, '')
+    const correct = typed.toLowerCase() === expected.toLowerCase()
     if (correct) {
       setFeedback('correct')
       setScore(s => s + 1)
