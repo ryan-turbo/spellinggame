@@ -878,7 +878,7 @@ export default function App() {
               </div>
               <h2 className="course-title">{course.title}</h2>
               <p className="course-subtitle">{course.subtitle}</p>
-              <br/>
+              {(course.id === 'PU1' || course.id === 'PU2') && <br/>}
               {!course.locked && (
                 <div className="course-units-preview">
                   {course.units.slice(0,3).map(u => (
