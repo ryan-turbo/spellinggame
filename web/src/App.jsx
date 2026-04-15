@@ -890,7 +890,7 @@ export default function App() {
         </div>
 
         {/* Banner */}
-        <img src="/images/banner.png" alt="" className="home-banner" />
+        <img src="/images/banner.gif" alt="" className="home-banner" />
         </>
       )}
 
