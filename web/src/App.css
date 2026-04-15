@@ -185,14 +185,14 @@ body {
 .word-chip-name { font-size: 0.9rem; font-weight: 700; word-break: break-all; line-height: 1.3; }
 
 /* ─── 闪卡 ─────────────────────────────────────────── */
-.flashcard-scene { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.flashcard-scene { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .flashcard-meta { width: 100%; display: flex; justify-content: space-between; font-size: 1.05rem; }
 .flashcard-unit { font-weight: 700; color: var(--primary); }
 .flashcard-counter { color: var(--text-soft); }
 .flashcard { width: 100%; max-width: 480px; }
 .flashcard-face { border-radius: 18px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: var(--shadow); }
 .flashcard-front { background: linear-gradient(160deg, #eef3ff 0%, #fff 100%); }
-.flashcard-img { width: 100px; height: 100px; object-fit: contain; margin-bottom: 12px; }
+.flashcard-img { max-width: 100px; max-height: 100px; width: auto; height: auto; object-fit: contain; margin-bottom: 8px; }
 .flashcard-word-row { display: flex; align-items: center; gap: 10px; }
 .flashcard-word { font-size: 1.8rem; font-weight: 900; letter-spacing: -0.5px; }
 .flashcard-hint { font-size: 0.9rem; color: var(--text-soft); margin-top: 8px; }
