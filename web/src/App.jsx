@@ -775,10 +775,10 @@ export default function App() {
                 style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
                 <div className="unit-key-row">
                   <span className="unit-card-key">{key.replace('pu3u', 'PU3U').replace('pu2u', 'PU2U')}</span>
+                  {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
                 </div>
                 <div className="unit-title-row">
                   <h3 className="unit-card-title">{unit.title}</h3>
-                  {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
                 </div>
                 <p className="unit-card-meta">{unit.words.length} words</p>
                 <div className="unit-card-actions">
