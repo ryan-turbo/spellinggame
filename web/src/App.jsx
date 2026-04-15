@@ -944,15 +944,11 @@ function UnitFlashcardView({ unitKey, VOCAB, progress, refresh, startIdx = 0 }) 
 
 // ─── 辅助：浏览全部词库 ────────────────────────────
 function BrowseAllView({ VOCAB, PU1_VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashcard, onChallenge }) {
-  const [courseFilter, setCourseFilter] = useState('all') // 'all' | 'pu1' | 'pu2' | 'pu3'
-  const [unitFilter, setUnitFilter] = useState('all')
+  const [courseFilter, setCourseFilter] = useState('pu1') // 'pu1' | 'pu2' | 'pu3'
+  const [unitFilter, setUnitFilter] = useState('pu1u0')
   
   // Get available unit keys based on course filter
   const getUnitKeys = (course) => {
-    if (course === 'all') {
-      // Return all keys from PU1, PU2 and PU3
-      return [...Object.keys(PU1_VOCAB || {}), ...Object.keys(PU2_VOCAB), ...Object.keys(PU3_VOCAB)]
-    }
     const vocab = course === 'pu1' ? PU1_VOCAB : (course === 'pu2' ? PU2_VOCAB : PU3_VOCAB)
     return Object.keys(vocab || {})
   }
@@ -962,9 +958,7 @@ function BrowseAllView({ VOCAB, PU1_VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBac
   // Get all words based on filters
   const getWords = () => {
     let words = []
-    const vocab = courseFilter === 'all' ? VOCAB : (
-      courseFilter === 'pu1' ? PU1_VOCAB : (courseFilter === 'pu2' ? PU2_VOCAB : PU3_VOCAB)
-    )
+    const vocab = courseFilter === 'pu1' ? PU1_VOCAB : (courseFilter === 'pu2' ? PU2_VOCAB : PU3_VOCAB)
     const unitKeys = getUnitKeys(courseFilter)
     
     if (unitFilter === 'all') {
@@ -986,8 +980,6 @@ function BrowseAllView({ VOCAB, PU1_VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBac
       
       {/* Course selector */}
       <div className="course-tabs">
-        <button className={`course-tab ${courseFilter === 'all' ? 'active' : ''}`}
-          onClick={() => { setCourseFilter('all'); setUnitFilter('all'); }}>📚 All</button>
         <button className={`course-tab ${courseFilter === 'pu1' ? 'active' : ''}`}
           onClick={() => { setCourseFilter('pu1'); setUnitFilter('pu1u0'); }}>🌱 PU1</button>
         <button className={`course-tab ${courseFilter === 'pu2' ? 'active' : ''}`}
