@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { VOCAB as PU2_VOCAB } from './data/pu2_vocab'
 import { PU3_VOCAB } from './data/pu3_vocab'
+import { PU1_VOCAB } from './data/pu1_vocab'
 import { recordGameResult, loadStats } from './pages/StatsPage'
 
-// PU2 + PU3 合并（key 已改为 pu2u1-pu2u9, pu3u1-pu3u9）
-const VOCAB = { ...PU2_VOCAB, ...PU3_VOCAB }
+// PU1 + PU2 + PU3 合并
+const VOCAB = { ...PU1_VOCAB, ...PU2_VOCAB, ...PU3_VOCAB }
 const getAllWordsForVocab = (key) => VOCAB[key]?.words || []
 const getVocabData = (key) => VOCAB[key] || {}
 import StatsPage from './pages/StatsPage'
@@ -650,12 +651,12 @@ const COURSES = [
     id: 'PU1',
     icon: '🌱',
     title: 'Spelling Bee',
-    subtitle: 'Essential English for Beginners',
+    subtitle: '183 Words · 10 Units',
     color: '#22c55e',
     bg: '#bbf7d0',
     cover: null,
-    units: [], // 待填充
-    locked: true,
+    units: ['pu1u0','pu1u1','pu1u2','pu1u3','pu1u4','pu1u5','pu1u6','pu1u7','pu1u8','pu1u9'],
+    locked: false,
   },
   {
     id: 'PU2',
