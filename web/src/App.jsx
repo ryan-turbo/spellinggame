@@ -361,12 +361,10 @@ function FlashCard({ word, unitTitle, index, total, onSpeak }) {
       <div className="flashcard-simple">
         <img src={imgSrc} alt={word.word} className="flashcard-img"
           onError={e => { e.target.style.display = 'none' }} />
-        <div className="flashcard-word-row">
-          <span className="flashcard-word">{word.word}</span>
-          <button className="icon-btn" onClick={() => onSpeak(word.word)}>🔊</button>
-        </div>
-        <div className="flashcard-phonetic">{word.phonetic}</div>
+        <span className="flashcard-word">{word.word}</span>
+        <span className="flashcard-phonetic">{word.phonetic}</span>
         <div className="flashcard-definition">{word.definition}</div>
+        <button className="icon-btn" onClick={() => onSpeak(word.word)}>🔊</button>
       </div>
     </div>
   )
