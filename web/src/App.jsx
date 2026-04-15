@@ -650,7 +650,7 @@ const COURSES = [
   {
     id: 'PU1',
     icon: '🌱',
-    title: 'Spelling Bee',
+    title: 'Hello',
     subtitle: '183 Words · 10 Units',
     color: '#22c55e',
     bg: '#bbf7d0',
@@ -843,16 +843,21 @@ export default function App() {
       {homeView === 'browse' ? (
         <BrowseAllView
           VOCAB={VOCAB}
+          PU1_VOCAB={PU1_VOCAB}
           PU2_VOCAB={PU2_VOCAB}
           PU3_VOCAB={PU3_VOCAB}
           progress={progress}
           onBack={() => setHomeView('home')}
           onFlashcard={(unitKey, wordIdx = 0) => { 
-            const course = unitKey.startsWith('pu2u') ? 'PU2' : 'PU3'
+            let course = 'PU3'
+            if (unitKey.startsWith('pu1u')) course = 'PU1'
+            else if (unitKey.startsWith('pu2u')) course = 'PU2'
             setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course)); setUnitView('flashcard'); setStartWordIdx(wordIdx)
           }}
           onChallenge={(unitKey) => { 
-            const course = unitKey.startsWith('pu2u') ? 'PU2' : 'PU3'
+            let course = 'PU3'
+            if (unitKey.startsWith('pu1u')) course = 'PU1'
+            else if (unitKey.startsWith('pu2u')) course = 'PU2'
             setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course))
           }}
         />
@@ -937,18 +942,18 @@ function UnitFlashcardView({ unitKey, VOCAB, progress, refresh, startIdx = 0 }) 
 }
 
 // ─── 辅助：浏览全部词库 ────────────────────────────
-function BrowseAllView({ VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashcard, onChallenge }) {
-  const [courseFilter, setCourseFilter] = useState('all') // 'all' | 'pu2' | 'pu3'
+function BrowseAllView({ VOCAB, PU1_VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashcard, onChallenge }) {
+  const [courseFilter, setCourseFilter] = useState('all') // 'all' | 'pu1' | 'pu2' | 'pu3'
   const [unitFilter, setUnitFilter] = useState('all')
   
   // Get available unit keys based on course filter
   const getUnitKeys = (course) => {
     if (course === 'all') {
-      // Return all keys from both PU2 and PU3
-      return [...Object.keys(PU2_VOCAB), ...Object.keys(PU3_VOCAB)]
+      // Return all keys from PU1, PU2 and PU3
+      return [...Object.keys(PU1_VOCAB || {}), ...Object.keys(PU2_VOCAB), ...Object.keys(PU3_VOCAB)]
     }
-    const vocab = course === 'pu2' ? PU2_VOCAB : PU3_VOCAB
-    return Object.keys(vocab)
+    const vocab = course === 'pu1' ? PU1_VOCAB : (course === 'pu2' ? PU2_VOCAB : PU3_VOCAB)
+    return Object.keys(vocab || {})
   }
   
   const currentUnits = getUnitKeys(courseFilter)
@@ -956,7 +961,9 @@ function BrowseAllView({ VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashc
   // Get all words based on filters
   const getWords = () => {
     let words = []
-    const vocab = courseFilter === 'all' ? VOCAB : (courseFilter === 'pu2' ? PU2_VOCAB : PU3_VOCAB)
+    const vocab = courseFilter === 'all' ? VOCAB : (
+      courseFilter === 'pu1' ? PU1_VOCAB : (courseFilter === 'pu2' ? PU2_VOCAB : PU3_VOCAB)
+    )
     const unitKeys = getUnitKeys(courseFilter)
     
     if (unitFilter === 'all') {
@@ -979,11 +986,13 @@ function BrowseAllView({ VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashc
       {/* Course selector */}
       <div className="course-tabs">
         <button className={`course-tab ${courseFilter === 'all' ? 'active' : ''}`}
-          onClick={() => { setCourseFilter('all'); setUnitFilter('all'); }}>📚 All (PU2+PU3)</button>
+          onClick={() => { setCourseFilter('all'); setUnitFilter('all'); }}>📚 All</button>
+        <button className={`course-tab ${courseFilter === 'pu1' ? 'active' : ''}`}
+          onClick={() => { setCourseFilter('pu1'); setUnitFilter('pu1u0'); }}>🌱 PU1</button>
         <button className={`course-tab ${courseFilter === 'pu2' ? 'active' : ''}`}
-          onClick={() => { setCourseFilter('pu2'); setUnitFilter('u1'); }}>📚 PU2</button>
+          onClick={() => { setCourseFilter('pu2'); setUnitFilter('pu2u1'); }}>📚 PU2</button>
         <button className={`course-tab ${courseFilter === 'pu3' ? 'active' : ''}`}
-          onClick={() => { setCourseFilter('pu3'); setUnitFilter('u1'); }}>🚀 PU3</button>
+          onClick={() => { setCourseFilter('pu3'); setUnitFilter('pu3u1'); }}>🚀 PU3</button>
       </div>
       
       {/* Unit selector */}
@@ -992,7 +1001,7 @@ function BrowseAllView({ VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashc
           onClick={() => setUnitFilter('all')}>All</button>
         {currentUnits.map(k => (
           <button key={k} className={`tab-btn ${unitFilter === k ? 'active' : ''}`}
-            onClick={() => setUnitFilter(k)}>{k.replace('pu2u','PU2U').replace('pu3u','PU3U')}</button>
+            onClick={() => setUnitFilter(k)}>{k.replace('pu1u','PU1U').replace('pu2u','PU2U').replace('pu3u','PU3U')}</button>
         ))}
       </div>
       
