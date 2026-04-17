@@ -1067,3 +1067,81 @@ body {
 .phonics-learn-dot.done {
   background: #93c5fd;
 }
+
+/* === Phonics Learn - Interactive Letters === */
+.phonics-learn-mainword-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.phonics-learn-word {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+/* 每个字母块可点击 */
+.phonics-letter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 900;
+  color: #1e293b;
+  background: #f1f5f9;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px 8px;
+  min-width: 44px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.12s;
+  line-height: 1;
+}
+.phonics-letter-btn:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  transform: scale(1.08);
+}
+.phonics-letter-btn:active {
+  transform: scale(0.92);
+  background: #bfdbfe;
+}
+/* 主词旁 speaker 按钮 */
+.phonics-word-speak-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 2px solid #93c5fd;
+  background: #eff6ff;
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.phonics-word-speak-btn:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  transform: scale(1.1);
+}
+.phonics-word-speak-btn:active {
+  transform: scale(0.9);
+}
+/* 字母对应音标行 */
+.phonics-letter-ipa-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  min-height: 24px;
+}
+.phonics-letter-ipa {
+  min-width: 44px;
+  text-align: center;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  padding: 2px;
+}
