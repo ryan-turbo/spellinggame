@@ -1,88 +1,143 @@
 /**
  * PhonicsLearnView — Phonics Learn 页面
  *
- * 交互逻辑：
- * - 点击大字母 → 发字母音（SSML phoneme）
- * - 点击主词中每个字母 → 发对应字母音（SSML phoneme）
- * - 主词旁 speaker 按钮 → 发完整单词（TTS）
- * - 下方 3 个次示例单词 → 点击发音（TTS）
- *
- * 字母音标映射（ARPAbet → IPA 对照）
+ * 交互：
+ * - 点击大字母 → 发字母音（用真实词映射）
+ * - 点击主词中每个字母 → 发对应字母音（用真实词映射）
+ * - 主词旁 speaker 按钮 → 发完整单词
+ * - 下方发音规则 + 3 个示例单词
  */
+
 import { useState } from 'react'
 
-// 字母名 → ARPAbet 发音（用于 SSML <phoneme alphabet="ipa">）
-// key: 小写字母 | 特殊: ch/sh/th/ph/wh/ng/ck/ee/oo/ai/oa/oi/ou/er/aw/ay/ey
-const LETTER_TO_ARPABET = {
-  // 辅音
-  b: 'b', c: 'k', d: 'd', f: 'f', g: 'g',
-  h: 'h', j: 'dʒ', k: 'k', l: 'l', m: 'm',
-  n: 'n', p: 'p', q: 'kw', r: 'ɹ', s: 's',
-  t: 't', v: 'v', w: 'w', x: 'ks', y: 'j', z: 'z',
-  // 特殊字母组合音（Phonics 常见规则）
-  ch: 'tʃ', sh: 'ʃ', th: 'θ', TH: 'ð',
-  ph: 'f', wh: 'w', ng: 'ŋ', ck: 'k',
-  // 元音字母组合
-  ee: 'iː', oo: 'uː', ea: 'iː', ai: 'eɪ',
-  ay: 'eɪ', oa: 'əʊ', ow: 'əʊ', ou: 'aʊ',
-  oy: 'ɔɪ', er: 'ɜː', ir: 'ɜː', ur: 'ɜː',
-  ar: 'ɑː', or: 'ɔː', aw: 'ɔː', air: 'eə',
-  // 短元音（对应 syllables 中的值）
-  a: 'æ', e: 'e', i: 'ɪ', o: 'ɒ', u: 'ʌ',
-  // 长元音
-  a_e: 'eɪ', e_e: 'iː', i_e: 'aɪ', o_e: 'əʊ', u_e: 'juː',
-  // 字母组合
-  ie: 'aɪ', ue: 'juː', iei: 'aɪiː',
-}
-
-// 辅音字母名对应 ARPAbet（大小写均可查）
-const CONS_ARPABET = {}
-// IPA → 可发音的英文单词映射（浏览器 TTS 读词更准）
+// ============================================================
+// IPA → 真实词映射（TTS 读这个词，发出对应 IPA 音）
+// 核心原则：用词的首音 = IPA 音
+// ============================================================
 const IPA_TO_WORD = {
-  'b': 'bee', 'd': 'dee', 'f': 'ef', 'g': 'jee',
-  'h': 'aitch', 'j': 'jay', 'k': 'kay', 'l': 'el',
-  'm': 'em', 'n': 'en', 'p': 'pee', 'r': 'ar',
-  's': 'ess', 't': 'tee', 'v': 'vee', 'w': 'double-u',
-  'x': 'ex', 'z': 'zee',
-  'æ': 'at', 'e': 'red', 'ɪ': 'sit', 'ɒ': 'lot', 'ʌ': 'cup',
-  'iː': 'see', 'uː': 'oo', 'ɑː': 'car', 'ɔː': 'door',
-  'ʃ': 'ship', 'tʃ': 'chip', 'θ': 'thin', 'ð': 'this',
-  'ŋ': 'sing', 'dʒ': 'jam', 'ɹ': 'run',
-  // 元音组合
-  'eɪ': 'day', 'aɪ': 'eye', 'ɔɪ': 'boy', 'aʊ': 'cow',
-  'əʊ': 'go', 'ɪə': 'ear', 'eə': 'air', 'ʊə': 'pure',
-  'ɜː': 'her',
+  // 辅音
+  'b': 'bat',    // /b/ — bat 的首音是 /b/ ✅
+  'd': 'dog',    // /d/
+  'f': 'fish',   // /f/
+  'g': 'go',     // /g/
+  'h': 'hat',    // /h/
+  'j': 'jam',    // /dʒ/ (j = dʒ)
+  'k': 'cat',    // /k/
+  'l': 'lion',   // /l/
+  'm': 'moon',   // /m/
+  'n': 'net',    // /n/
+  'p': 'pig',    // /p/
+  'r': 'red',    // /r/
+  's': 'sun',    // /s/
+  't': 'top',    // /t/
+  'v': 'van',    // /v/
+  'w': 'wet',    // /w/
+  'x': 'fox',    // /ks/ (x 末音)
+  'y': 'yes',    // /j/
+  'z': 'zebra',  // /z/
+
+  // 特殊字母组合（单个 IPA 符号不够，用词）
+  'ŋ': 'sing',       // /ŋ/ — sing 末音 /ŋ/
+  'ɹ': 'run',        // /ɹ/ — run 首音 /r/（英式 r）
+  'ʃ': 'ship',       // /ʃ/
+  'ʒ': 'measure',    // /ʒ/
+  'θ': 'think',      // /θ/ — think 首音
+  'ð': 'this',       // /ð/ — this 首音
+
+  // 短元音
+  'æ': 'cat',        // /æ/ — cat 中间音
+  'e': 'bed',        // /e/ — bed 中间音
+  'ɪ': 'sit',        // /ɪ/ — sit 中间音
+  'ɒ': 'hot',        // /ɒ/ — hot 中间音（英式）
+  'ʌ': 'cup',        // /ʌ/ — cup 中间音
+
+  // 长元音 / 双元音
+  'iː': 'see',       // /iː/
+  'uː': 'moon',      // /uː/ — moon 中间音
+  'ɑː': 'car',       // /ɑː/
+  'ɔː': 'door',      // /ɔː/
+  'ɜː': 'bird',      // /ɜː/
+
+  // 双元音
+  'eɪ': 'day',       // /eɪ/
+  'aɪ': 'fly',       // /aɪ/
+  'ɔɪ': 'boy',       // /ɔɪ/
+  'aʊ': 'cow',       // /aʊ/
+  'əʊ': 'go',        // /əʊ/
+  'ɪə': 'ear',       // /ɪə/
+  'eə': 'hair',      // /eə/
+  'ʊə': 'tour',      // /ʊə/
+
+  // 字母组合（syllables 中的值）
+  'ch': 'chip',      // /tʃ/
+  'sh': 'ship',      // /ʃ/
+  'th': 'think',     // /θ/
+  'TH': 'this',      // /ð/
+  'ph': 'fish',      // /f/
+  'wh': 'wet',       // /w/
+  'ng': 'sing',      // /ŋ/
+  'ck': 'duck',      // /k/
+  'ee': 'see',       // /iː/
+  'oo': 'moon',      // /uː/
+  'ea': 'see',       // /iː/
+  'ai': 'day',       // /eɪ/
+  'ay': 'day',       // /eɪ/
+  'oa': 'go',        // /əʊ/
+  'ow': 'go',        // /əʊ/ (go 型)
+  'ou': 'cow',       // /aʊ/
+  'oy': 'boy',       // /ɔɪ/
+  'er': 'bird',      // /ɜː/
+  'ir': 'bird',      // /ɜː/
+  'ur': 'bird',      // /ɜː/
+  'ar': 'car',       // /ɑː/
+  'or': 'door',      // /ɔː/
+  'aw': 'door',      // /ɔː/
+  'air': 'hair',     // /eə/
+  'ear': 'ear',      // /ɪə/
 }
 
-function initMaps() {
-  const cons = 'bcdfgklmnprstvwxyz'
-  const c2a = { b:'b',c:'k',d:'d',f:'f',g:'g',h:'h',j:'dʒ',k:'k',l:'l',m:'m',n:'n',p:'p',r:'ɹ',s:'s',t:'t',v:'v',w:'w',x:'ks',y:'j',z:'z' }
-  const v2a = { a:'æ',e:'e',i:'ɪ',o:'ɒ',u:'ʌ' }
-  cons.split('').forEach(l => { CONS_ARPABET[l] = c2a[l] })
-  cons.split('').forEach(l => { CONS_ARPABET[l.toUpperCase()] = c2a[l] })
-  Object.entries(v2a).forEach(([k,v]) => { CONS_ARPABET[k] = v; CONS_ARPABET[k.toUpperCase()] = v })
-}
-initMaps()
+// 特殊字母组合（大写开头）
+const UPPER_COMBO = { 'TH': IPA_TO_WORD['TH'], 'Ch': IPA_TO_WORD['ch'] }
 
-// 返回 ARPAbet 发音文本，用于 SSML <phoneme alphabet="ipa">
-function getARPAbet(letter) {
-  return CONS_ARPABET[letter] || LETTER_TO_ARPABET[letter] || letter
+// ============================================================
+// 辅音字母名 → IPA 映射
+// ============================================================
+const CONSONANT_MAP = {}
+const cons = 'bcdfgklmnprstvwxyz'
+const c2i = {
+  b:'b',c:'k',d:'d',f:'f',g:'g',h:'h',j:'dʒ',
+  k:'k',l:'l',m:'m',n:'n',p:'p',r:'ɹ',s:'s',
+  t:'t',v:'v',w:'w',x:'ks',y:'j',z:'z'
+}
+cons.split('').forEach(l => {
+  CONSONANT_MAP[l] = c2i[l]
+  CONSONANT_MAP[l.toUpperCase()] = c2i[l]
+})
+
+// 元音字母名 → IPA（默认短元音）
+const VOWEL_MAP = {
+  a:'æ', e:'e', i:'ɪ', o:'ɒ', u:'ʌ',
+  A:'æ', E:'e', I:'ɪ', O:'ɒ', U:'ʌ',
 }
 
-// 发音素（ARPAbet → 真实词 → TTS）
-function speakLetter(ar) {
-  speakPhonicsSound(ar)
+// ============================================================
+// 核心函数
+// ============================================================
+
+// 根据字母/syllable 值找 IPA → 真实词 → TTS
+function getIPA(letterOrChunk) {
+  if (!letterOrChunk) return ''
+  const k = letterOrChunk.toLowerCase()
+  return IPA_TO_WORD[k] ? k : letterOrChunk  // 返回 IPA key 或原始值
 }
 
-// 发字母音（用 IPA_TO_WORD 找真实词来发音，比读符号更准）
-function speakPhonicsSound(arpa) {
+// 发音素（通过真实词 TTS）
+function speakPhoneme(ipa) {
   speechSynthesis.cancel()
-  if (!arpa) return
-  // 优先找真实英文词
-  const word = IPA_TO_WORD[arpa] || IPA_TO_WORD[arpa.toLowerCase()] || arpa
+  const word = IPA_TO_WORD[ipa] || IPA_TO_WORD[ipa.toLowerCase()] || ipa
   const utter = new SpeechSynthesisUtterance(word)
   utter.lang = 'en-GB'
-  utter.rate = 0.75
+  utter.rate = 0.8
   speechSynthesis.speak(utter)
 }
 
@@ -97,11 +152,16 @@ function speakWord(word) {
 
 // 发示例词
 function speakExample(ex) {
-  speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(ex.trim())
-  u.lang = 'en-GB'
-  u.rate = 0.85
-  speechSynthesis.speak(u)
+  speakWord(ex.trim())
+}
+
+// syllables → IPA 列表
+function syllablesToIPA(syllables) {
+  if (!syllables) return []
+  return syllables.map(s => {
+    const k = s.toLowerCase()
+    return IPA_TO_WORD[k] ? k : s
+  })
 }
 
 // 提取 definition 中的示例词
@@ -112,27 +172,9 @@ function extractExamples(def) {
   return m[1].split(/,\s*/).slice(0, 3)
 }
 
-// syllables 中获取第 i 个音素
-function getPhonemeAt(word, syllables, idx) {
-  if (!syllables || !syllables.length) return word[idx] || ''
-  let pos = 0
-  for (const syl of syllables) {
-    const len = syl.length
-    if (idx < pos + len) return syl
-    pos += len
-  }
-  return word[idx] || ''
-}
-
-// syllables → ARPAbet 列表
-function syllablesToARPAbet(syllables) {
-  if (!syllables) return []
-  return syllables.map(syl => {
-    const key = syl.toLowerCase()
-    return LETTER_TO_ARPABET[key] || syl
-  })
-}
-
+// ============================================================
+// 组件
+// ============================================================
 export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   const [current, setCurrent] = useState(0)
   const w = allWords[current]
@@ -146,13 +188,24 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
   )
 
   const examples = extractExamples(w.definition)
-  // 主词的音素列表（ARPAbet）
-  const phonemeARPAList = syllablesToARPAbet(w.syllables || [])
-  // 大字母对应的音素
-  const firstARPAL = phonemeARPAList[0] || getARPAbet(w.word[0]) || ''
+  const ipaList = syllablesToIPA(w.syllables || [])
+
+  // 大字母对应的 IPA（第一个音素）
+  const firstIPA = ipaList[0] || CONSONANT_MAP[w.word[0]] || VOWEL_MAP[w.word[0]] || w.word[0]
+
+  // 主词每个字母对应的 IPA（对齐 syllables）
+  function getIPAForIdx(idx) {
+    if (!w.syllables || !w.syllables.length) {
+      // fallback: 按字母
+      const l = w.word[idx]
+      return CONSONANT_MAP[l] || VOWEL_MAP[l] || l
+    }
+    return ipaList[idx] || ''
+  }
 
   return (
     <div className="spelling-scene phonics-learn-scene">
+
       {/* Header */}
       <div className="spelling-header">
         <button className="icon-btn back-btn" onClick={onBack}>← Back</button>
@@ -162,43 +215,41 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
 
       {/* Progress bar */}
       <div className="spelling-progress-bar">
-        <div
-          className="spelling-progress-fill"
-          style={{ width: `${((current + 1) / total) * 100}%` }}
-        />
+        <div className="spelling-progress-fill" style={{ width: `${((current + 1) / total) * 100}%` }} />
       </div>
 
-      {/* ── 主学习卡片 ────────────────────────────── */}
+      {/* ── 主学习卡片 ─────────────────────────────── */}
       <div className="phonics-learn-card">
 
-        {/* 1. 大字母 → 发音素 */}
+        {/* 1. 大字母按钮 */}
         <div
           className="phonics-phoneme-btn"
-          onClick={() => {
-            if (firstARPAL) {
-              speakPhonicsSound(firstARPAL)
-            }
-          }}
+          onClick={() => speakPhoneme(firstIPA)}
           title="Click to hear letter sound"
         >
           <span className="phonics-phoneme-letter">{w.word[0].toUpperCase()}</span>
-          <span className="phonics-phoneme-hint">🔊 letter sound</span>
+          <span className="phonics-phoneme-hint">🔊 click me</span>
         </div>
 
-        {/* 2. 字母音 IPA 音标（大字母下方） */}
-        <div className="phonics-learn-ipa">/{firstARPAL}/</div>
+        {/* 2. 字母音 IPA */}
+        <div className="phonics-learn-ipa">/{firstIPA}/</div>
 
-        {/* 3. 主单词：每个字母可点击 + 旁侧 speaker */}
+        {/* 3. 发音规则（恢复） */}
+        {w.definition && (
+          <div className="phonics-learn-rule">{w.definition}</div>
+        )}
+
+        {/* 4. 主单词（每个字母可点击 + speaker 按钮） */}
         <div className="phonics-learn-mainword-row">
           <div className="phonics-learn-word">
             {w.word.split('').map((letter, i) => {
-              const ar = phonemeARPAList[i] || getARPAbet(letter)
+              const ipa = getIPAForIdx(i)
               return (
                 <span
                   key={i}
                   className="phonics-letter-btn"
-                  onClick={() => speakLetter(ar || letter)}
-                  title={`${letter} → /${ar}/`}
+                  onClick={() => speakPhoneme(ipa)}
+                  title={`${letter} → /${ipa}/`}
                 >
                   {letter}
                 </span>
@@ -214,16 +265,19 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
           </button>
         </div>
 
-        {/* 4. 每个字母的音标（对齐显示） */}
+        {/* 5. 每个字母的 IPA 音标 */}
         <div className="phonics-letter-ipa-row">
-          {phonemeARPAList.map((ar, i) => (
-            <span key={i} className="phonics-letter-ipa" style={{ minWidth: 44, textAlign: 'center' }}>
-              /{ar}/
-            </span>
-          ))}
+          {(w.syllables || w.word.split('')).map((syl, i) => {
+            const ipa = ipaList[i] || ''
+            return (
+              <span key={i} className="phonics-letter-ipa" style={{ minWidth: 44, textAlign: 'center' }}>
+                /{ipa}/
+              </span>
+            )
+          })}
         </div>
 
-        {/* 5. 次示例单词 */}
+        {/* 6. 示例单词 */}
         {examples.length > 0 && (
           <div className="phonics-learn-examples">
             <div className="phonics-learn-examples-label">Example words:</div>
@@ -264,10 +318,7 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
         </div>
 
         {current < total - 1 ? (
-          <button
-            className="btn btn-primary"
-            onClick={() => setCurrent(c => Math.min(total - 1, c + 1))}
-          >
+          <button className="btn btn-primary" onClick={() => setCurrent(c => Math.min(total - 1, c + 1))}>
             Next →
           </button>
         ) : (
@@ -276,6 +327,7 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
           </button>
         )}
       </div>
+
     </div>
   )
 }
