@@ -1,241 +1,191 @@
 /**
  * PhonicsLearnView — Phonics Learn 页面
  *
- * 交互：
- * - 点击大字母 → 发字母音（用真实词映射）
- * - 点击主词中每个字母 → 发对应字母音（用真实词映射）
- * - 主词旁 speaker 按钮 → 发完整单词
- * - 下方发音规则 + 3 个示例单词
+ * 交互逻辑：
+ * - 点击大字母按钮 → 播放该字母音的音频
+ * - 点击主词中每个字母/syllable块 → 播放对应音素音频
+ * - speaker按钮 → 发完整单词（用 /audio/{word}.mp3）
+ * - 示例词按钮 → 发示例词音频
+ *
+ * 音频来源：
+ * - 音素：/audio/phonics/ph_{syllable}.mp3（预录音素音频）
+ * - 单词：/audio/{word}.mp3（已有完整词音频）
+ * - fallback：浏览器 TTS（仅用于无音频的音素）
  */
 
-import { useState, useEffect } from 'react'
+// ── Syllable → Audio File Map ──────────────────────────────────
+// Built from: public/audio/phonics/ph_*.mp3 + public/audio/*.mp3
+// 覆盖率：92/93 syllables have audio (only 'pi' generated from 'hospital')
+export const SYLLABLE_AUDIO_MAP = {
+  'a':     '/audio/phonics/ph_a.mp3',
+  'ai':    '/audio/phonics/ph_ai.mp3',
+  'am':    '/audio/phonics/ph_am.mp3',
+  'ar':    '/audio/phonics/ph_ar.mp3',
+  'are':   '/audio/phonics/ph_are.mp3',
+  'ay':    '/audio/phonics/ph_ay.mp3',
+  'b':     '/audio/phonics/ph_b.mp3',
+  'bit':   '/audio/phonics/ph_bit.mp3',
+  'bl':    '/audio/phonics/ph_bl.mp3',
+  'ble':   '/audio/phonics/ph_ble.mp3',
+  'br':    '/audio/phonics/ph_br.mp3',
+  'brel':  '/audio/phonics/ph_brel.mp3',
+  'bt':    '/audio/phonics/ph_bt.mp3',
+  'c':     '/audio/phonics/ph_c.mp3',
+  'ch':    '/audio/phonics/ph_ch.mp3',
+  'cil':   '/audio/phonics/ph_cil.mp3',
+  'ck':    '/audio/phonics/ph_ck.mp3',
+  'cl':    '/audio/phonics/ph_cl.mp3',
+  'cr':    '/audio/phonics/ph_cr.mp3',
+  'd':     '/audio/phonics/ph_d.mp3',
+  'dr':    '/audio/phonics/ph_dr.mp3',
+  'e':     '/audio/phonics/ph_e.mp3',
+  'ea':    '/audio/phonics/ph_ea.mp3',
+  'ee':    '/audio/phonics/ph_ee.mp3',
+  'en':    '/audio/phonics/ph_en.mp3',
+  'er':    '/audio/phonics/ph_er.mp3',
+  'est':   '/audio/phonics/ph_est.mp3',
+  'f':     '/audio/phonics/ph_f.mp3',
+  'fan':   '/audio/phonics/ph_fan.mp3',
+  'fl':    '/audio/phonics/ph_fl.mp3',
+  'fr':    '/audio/phonics/ph_fr.mp3',
+  'g':     '/audio/phonics/ph_g.mp3',
+  'h':     '/audio/phonics/ph_h.mp3',
+  'hos':   '/audio/phonics/ph_hos.mp3',
+  'i':     '/audio/phonics/ph_i.mp3',
+  'ir':    '/audio/phonics/ph_ir.mp3',
+  'j':     '/audio/phonics/ph_j.mp3',
+  'k':     '/audio/phonics/ph_k.mp3',
+  'ke':    '/audio/phonics/ph_ke.mp3',
+  'kn':    '/audio/phonics/ph_kn.mp3',
+  'l':     '/audio/phonics/ph_l.mp3',
+  'la':    '/audio/phonics/ph_la.mp3',
+  'm':     '/audio/phonics/ph_m.mp3',
+  'mb':    '/audio/phonics/ph_mb.mp3',
+  'me':    '/audio/phonics/ph_me.mp3',
+  'n':     '/audio/phonics/ph_n.mp3',
+  'ne':    '/audio/phonics/ph_ne.mp3',
+  'ng':    '/audio/phonics/ph_ng.mp3',
+  'nk':    '/audio/phonics/ph_nk.mp3',
+  'o':     '/audio/phonics/ph_o.mp3',
+  'oa':    '/audio/phonics/ph_oa.mp3',
+  'oi':    '/audio/phonics/ph_oi.mp3',
+  'oo':    '/audio/phonics/ph_oo.mp3',
+  'or':    '/audio/phonics/ph_or.mp3',
+  'ou':    '/audio/phonics/ph_ou.mp3',
+  'ow':    '/audio/phonics/ph_ow.mp3',
+  'oy':    '/audio/phonics/ph_oy.mp3',
+  'p':     '/audio/phonics/ph_p.mp3',
+  'pen':   '/audio/phonics/ph_pen.mp3',
+  'ph':    '/audio/phonics/ph_ph.mp3',
+  'pi':    '/audio/phonics/ph_pi.mp3',
+  'pl':    '/audio/phonics/ph_pl.mp3',
+  'qu':    '/audio/phonics/ph_qu.mp3',
+  'r':     '/audio/phonics/ph_r.mp3',
+  'rab':   '/audio/phonics/ph_rab.mp3',
+  's':     '/audio/phonics/ph_s.mp3',
+  'sch':   '/audio/phonics/ph_sch.mp3',
+  'sh':    '/audio/phonics/ph_sh.mp3',
+  'sl':    '/audio/phonics/ph_sl.mp3',
+  'sn':    '/audio/phonics/ph_sn.mp3',
+  'spr':   '/audio/phonics/ph_spr.mp3',
+  'st':    '/audio/phonics/ph_st.mp3',
+  'str':   '/audio/phonics/ph_str.mp3',
+  't':     '/audio/phonics/ph_t.mp3',
+  'ta':    '/audio/phonics/ph_ta.mp3',
+  'tal':   '/audio/phonics/ph_tal.mp3',
+  'tas':   '/audio/phonics/ph_tas.mp3',
+  'te':    '/audio/phonics/ph_te.mp3',
+  'th':    '/audio/phonics/ph_th.mp3',
+  'tic':   '/audio/phonics/ph_tic.mp3',
+  'tr':    '/audio/phonics/ph_tr.mp3',
+  'ty':    '/audio/phonics/ph_ty.mp3',
+  'u':     '/audio/phonics/ph_u.mp3',
+  'um':    '/audio/phonics/ph_um.mp3',
+  'ur':    '/audio/phonics/ph_ur.mp3',
+  'v':     '/audio/phonics/ph_v.mp3',
+  've':    '/audio/phonics/ph_ve.mp3',
+  'w':     '/audio/phonics/ph_w.mp3',
+  'wh':    '/audio/phonics/ph_wh.mp3',
+  'wr':    '/audio/phonics/ph_wr.mp3',
+  'x':     '/audio/phonics/ph_x.mp3',
+  'y':     '/audio/phonics/ph_y.mp3',
+  'z':     '/audio/phonics/ph_z.mp3',
+}
 
-// ============================================================
-// 英音音色选取：优先 Google WaveNet / Premium 自然人声
-// ============================================================
-let _gbVoice = null
+// ── Audio Playback ────────────────────────────────────────────
 
-function getGBVoice() {
-  if (_gbVoice) return _gbVoice
-  const voices = speechSynthesis.getVoices()
-  if (!voices.length) return null
+let _audio = null
 
-  // 找英音 voice，优先顺序：
-  // 1. Google UK WaveNet/Premium (localService=true, name 含 wave/high/premium)
-  // 2. System British English
-  // 3. 任意 en-GB
-  const priority = (v) => {
-    const n = v.name.toLowerCase()
-    const isGB = v.lang === 'en-GB'
-    const isUK = v.lang.startsWith('en-GB') || v.lang === 'en-GB'
-    if (!isGB && !isUK) return 0
-    let score = 1
-    if (n.includes('wave') || n.includes('premium') || n.includes('high') || n.includes('neural')) score += 4
-    if (n.includes('google')) score += 3
-    if (v.localService) score += 2
-    if (n.includes('samantha') || n.includes('karen') || n.includes('daniel') || n.includes('emma') || n.includes('james')) score += 1
-    return score
+function stopAudio() {
+  if (_audio) {
+    _audio.pause()
+    _audio.currentTime = 0
   }
-
-  const sorted = [...voices].sort((a, b) => priority(b) - priority(a))
-  _gbVoice = sorted[0] || null
-  console.log('[PhonicsLearn] selected voice:', _gbVoice?.name, _gbVoice?.lang)
-  return _gbVoice
 }
 
-// 初始化音色（异步加载 voices）
-function initVoice() {
-  const voices = speechSynthesis.getVoices()
-  if (voices.length > 0) { getGBVoice(); return }
-  speechSynthesis.onvoiceschanged = () => { getGBVoice() }
-}
-initVoice()
-
-// ============================================================
-// IPA → 真实词映射（TTS 读这个词，发出对应 IPA 音）
-// 核心原则：用词的首音 = IPA 音
-// ============================================================
-const IPA_TO_WORD = {
-  // 辅音
-  'b': 'bat',    // /b/ — bat 的首音是 /b/ ✅
-  'd': 'dog',    // /d/
-  'f': 'fish',   // /f/
-  'g': 'go',     // /g/
-  'h': 'hat',    // /h/
-  'j': 'jam',    // /dʒ/ (j = dʒ)
-  'k': 'cat',    // /k/
-  'l': 'lion',   // /l/
-  'm': 'moon',   // /m/
-  'n': 'net',    // /n/
-  'p': 'pig',    // /p/
-  'r': 'red',    // /r/
-  's': 'sun',    // /s/
-  't': 'top',    // /t/
-  'v': 'van',    // /v/
-  'w': 'wet',    // /w/
-  'x': 'fox',    // /ks/ (x 末音)
-  'y': 'yes',    // /j/
-  'z': 'zebra',  // /z/
-
-  // 特殊字母组合（单个 IPA 符号不够，用词）
-  'ŋ': 'sing',       // /ŋ/ — sing 末音 /ŋ/
-  'ɹ': 'run',        // /ɹ/ — run 首音 /r/（英式 r）
-  'ʃ': 'ship',       // /ʃ/
-  'ʒ': 'measure',    // /ʒ/
-  'θ': 'think',      // /θ/ — think 首音
-  'ð': 'this',       // /ð/ — this 首音
-
-  // 短元音
-  'æ': 'cat',        // /æ/ — cat 中间音
-  'e': 'bed',        // /e/ — bed 中间音
-  'ɪ': 'sit',        // /ɪ/ — sit 中间音
-  'ɒ': 'hot',        // /ɒ/ — hot 中间音（英式）
-  'ʌ': 'cup',        // /ʌ/ — cup 中间音
-
-  // 长元音 / 双元音
-  'iː': 'see',       // /iː/
-  'uː': 'moon',      // /uː/ — moon 中间音
-  'ɑː': 'car',       // /ɑː/
-  'ɔː': 'door',      // /ɔː/
-  'ɜː': 'bird',      // /ɜː/
-
-  // 双元音
-  'eɪ': 'day',       // /eɪ/
-  'aɪ': 'fly',       // /aɪ/
-  'ɔɪ': 'boy',       // /ɔɪ/
-  'aʊ': 'cow',       // /aʊ/
-  'əʊ': 'go',        // /əʊ/
-  'ɪə': 'ear',       // /ɪə/
-  'eə': 'hair',      // /eə/
-  'ʊə': 'tour',      // /ʊə/
-
-  // 字母组合（syllables 中的值）
-  'ch': 'chip',      // /tʃ/
-  'sh': 'ship',      // /ʃ/
-  'th': 'think',     // /θ/
-  'TH': 'this',      // /ð/
-  'ph': 'fish',      // /f/
-  'wh': 'wet',       // /w/
-  'ng': 'sing',      // /ŋ/
-  'ck': 'duck',      // /k/
-  'ee': 'see',       // /iː/
-  'oo': 'moon',      // /uː/
-  'ea': 'see',       // /iː/
-  'ai': 'day',       // /eɪ/
-  'ay': 'day',       // /eɪ/
-  'oa': 'go',        // /əʊ/
-  'ow': 'go',        // /əʊ/ (go 型)
-  'ou': 'cow',       // /aʊ/
-  'oy': 'boy',       // /ɔɪ/
-  'er': 'bird',      // /ɜː/
-  'ir': 'bird',      // /ɜː/
-  'ur': 'bird',      // /ɜː/
-  'ar': 'car',       // /ɑː/
-  'or': 'door',      // /ɔː/
-  'aw': 'door',      // /ɔː/
-  'air': 'hair',     // /eə/
-  'ear': 'ear',      // /ɪə/
-}
-
-// 特殊字母组合（大写开头）
-const UPPER_COMBO = { 'TH': IPA_TO_WORD['TH'], 'Ch': IPA_TO_WORD['ch'] }
-
-// ============================================================
-// 辅音字母名 → IPA 映射
-// ============================================================
-const CONSONANT_MAP = {}
-const cons = 'bcdfgklmnprstvwxyz'
-const c2i = {
-  b:'b',c:'k',d:'d',f:'f',g:'g',h:'h',j:'dʒ',
-  k:'k',l:'l',m:'m',n:'n',p:'p',r:'ɹ',s:'s',
-  t:'t',v:'v',w:'w',x:'ks',y:'j',z:'z'
-}
-cons.split('').forEach(l => {
-  CONSONANT_MAP[l] = c2i[l]
-  CONSONANT_MAP[l.toUpperCase()] = c2i[l]
-})
-
-// 元音字母名 → IPA（默认短元音）
-const VOWEL_MAP = {
-  a:'æ', e:'e', i:'ɪ', o:'ɒ', u:'ʌ',
-  A:'æ', E:'e', I:'ɪ', O:'ɒ', U:'ʌ',
-}
-
-// ============================================================
-// 核心函数
-// ============================================================
-
-// 根据字母/syllable 值找 IPA → 真实词 → TTS
-function getIPA(letterOrChunk) {
-  if (!letterOrChunk) return ''
-  const k = letterOrChunk.toLowerCase()
-  return IPA_TO_WORD[k] ? k : letterOrChunk  // 返回 IPA key 或原始值
-}
-
-// 发音素（通过真实词 TTS）
-function speakPhoneme(ipa) {
-  speechSynthesis.cancel()
-  const word = IPA_TO_WORD[ipa] || IPA_TO_WORD[ipa.toLowerCase()] || ipa
-  const utter = new SpeechSynthesisUtterance(word)
-  utter.lang = 'en-GB'
-  utter.rate = 0.82
-  const v = getGBVoice()
-  if (v) utter.voice = v
-  speechSynthesis.speak(utter)
-}
-
-// 发完整单词
-function speakWord(word) {
-  speechSynthesis.cancel()
-  const utter = new SpeechSynthesisUtterance(word)
-  utter.lang = 'en-GB'
-  utter.rate = 0.88
-  const v = getGBVoice()
-  if (v) utter.voice = v
-  speechSynthesis.speak(utter)
-}
-
-// 发示例词
-function speakExample(ex) {
-  speechSynthesis.cancel()
-  const utter = new SpeechSynthesisUtterance(ex.trim())
-  utter.lang = 'en-GB'
-  utter.rate = 0.88
-  const v = getGBVoice()
-  if (v) utter.voice = v
-  speechSynthesis.speak(utter)
-}
-
-// syllables → IPA 列表
-function syllablesToIPA(syllables) {
-  if (!syllables) return []
-  return syllables.map(s => {
-    const k = s.toLowerCase()
-    return IPA_TO_WORD[k] ? k : s
+function playAudio(src) {
+  return new Promise((resolve) => {
+    stopAudio()
+    _audio = new Audio()
+    _audio.src = src
+    _audio.onended = resolve
+    _audio.onerror = resolve
+    _audio.play().catch(resolve)  // ignore autoplay errors
   })
 }
 
-// 提取 definition 中的示例词
-function extractExamples(def) {
-  if (!def) return []
-  const m = def.match(/\(([^)]+)\)/)
+// 发音素（优先用音频文件，fallback 用 TTS）
+async function speakPhoneme(syllable) {
+  const src = SYLLABLE_AUDIO_MAP[syllable]
+  if (src) {
+    await playAudio(src)
+  } else {
+    // Fallback: browser TTS
+    try {
+      const utter = new SpeechSynthesisUtterance(syllable)
+      utter.lang = 'en-GB'
+      utter.rate = 0.8
+      speechSynthesis.speak(utter)
+    } catch (e) {
+      console.warn('[PhonicsLearn] TTS fallback failed for:', syllable)
+    }
+  }
+}
+
+// 发完整单词（用音频文件）
+async function speakWord(word) {
+  const src = `/audio/${encodeURIComponent(word)}.mp3`
+  await playAudio(src)
+}
+
+// 发示例词（用音频文件）
+async function speakExample(word) {
+  const src = `/audio/${encodeURIComponent(word.trim())}.mp3`
+  await playAudio(src)
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+
+function extractExamples(definition) {
+  if (!definition) return []
+  const m = definition.match(/\(([^)]+)\)/)
   if (!m) return []
   return m[1].split(/,\s*/).slice(0, 3)
 }
 
-// ============================================================
-// 组件
-// ============================================================
+// ── Component ─────────────────────────────────────────────────
+
+import { useState, useEffect } from 'react'
+
 export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   const [current, setCurrent] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(false)
   const w = allWords[current]
   const total = allWords.length
 
-  // 确保 voices 加载后再选一次（异步 voices 列表）
+  // Stop audio on unmount
   useEffect(() => {
-    const load = () => { _gbVoice = null; getGBVoice() }
-    load()
-    speechSynthesis.onvoiceschanged = load
+    return () => stopAudio()
   }, [])
 
   if (!w) return (
@@ -245,21 +195,11 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
     </div>
   )
 
+  const syllables = w.syllables || w.word.split('')
   const examples = extractExamples(w.definition)
-  const ipaList = syllablesToIPA(w.syllables || [])
 
-  // 大字母对应的 IPA（第一个音素）
-  const firstIPA = ipaList[0] || CONSONANT_MAP[w.word[0]] || VOWEL_MAP[w.word[0]] || w.word[0]
-
-  // 主词每个字母对应的 IPA（对齐 syllables）
-  function getIPAForIdx(idx) {
-    if (!w.syllables || !w.syllables.length) {
-      // fallback: 按字母
-      const l = w.word[idx]
-      return CONSONANT_MAP[l] || VOWEL_MAP[l] || l
-    }
-    return ipaList[idx] || ''
-  }
+  // 大字母用第一个 syllable
+  const firstSyl = syllables[0] || w.word[0]
 
   return (
     <div className="spelling-scene phonics-learn-scene">
@@ -279,37 +219,34 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
       {/* ── 主学习卡片 ─────────────────────────────── */}
       <div className="phonics-learn-card">
 
-        {/* 1. 大字母按钮 */}
+        {/* 1. 大字母按钮（点击播放第一个音素） */}
         <div
           className="phonics-phoneme-btn"
-          onClick={() => speakPhoneme(firstIPA)}
-          title="Click to hear letter sound"
+          onClick={() => speakPhoneme(firstSyl)}
+          title={`Play /${firstSyl}/ sound`}
         >
           <span className="phonics-phoneme-letter">{w.word[0].toUpperCase()}</span>
-          <span className="phonics-phoneme-hint">🔊 click me</span>
+          <span className="phonics-phoneme-hint">🔊 tap me</span>
         </div>
 
-        {/* 2. 字母音 IPA */}
-        <div className="phonics-learn-ipa">/{firstIPA}/</div>
-
-        {/* 3. 发音规则（恢复） */}
+        {/* 2. 发音规则文字 */}
         {w.definition && (
           <div className="phonics-learn-rule">{w.definition}</div>
         )}
 
-        {/* 4. 主单词（每个字母可点击 + speaker 按钮） */}
+        {/* 3. 主单词（每个 syllable 块可点击） */}
         <div className="phonics-learn-mainword-row">
           <div className="phonics-learn-word">
-            {w.word.split('').map((letter, i) => {
-              const ipa = getIPAForIdx(i)
+            {syllables.map((syl, i) => {
+              const hasAudio = !!SYLLABLE_AUDIO_MAP[syl]
               return (
                 <span
                   key={i}
-                  className="phonics-letter-btn"
-                  onClick={() => speakPhoneme(ipa)}
-                  title={`${letter} → /${ipa}/`}
+                  className={`phonics-syllable-btn${hasAudio ? '' : ' no-audio'}`}
+                  onClick={() => speakPhoneme(syl)}
+                  title={`${syl} — ${hasAudio ? 'audio' : 'TTS fallback'}`}
                 >
-                  {letter}
+                  {syl}
                 </span>
               )
             })}
@@ -323,19 +260,16 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
           </button>
         </div>
 
-        {/* 5. 每个字母的 IPA 音标 */}
+        {/* 4. 每个 syllable 对应的 IPA 标注 */}
         <div className="phonics-letter-ipa-row">
-          {(w.syllables || w.word.split('')).map((syl, i) => {
-            const ipa = ipaList[i] || ''
-            return (
-              <span key={i} className="phonics-letter-ipa" style={{ minWidth: 44, textAlign: 'center' }}>
-                /{ipa}/
-              </span>
-            )
-          })}
+          {syllables.map((syl, i) => (
+            <span key={i} className="phonics-letter-ipa" style={{ minWidth: 44, textAlign: 'center' }}>
+              {SYLLABLE_AUDIO_MAP[syl] ? `/${syl}/` : `/${syl}/?`}
+            </span>
+          ))}
         </div>
 
-        {/* 6. 示例单词 */}
+        {/* 5. 示例单词 */}
         {examples.length > 0 && (
           <div className="phonics-learn-examples">
             <div className="phonics-learn-examples-label">Example words:</div>
@@ -344,7 +278,7 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
                 <button
                   key={i}
                   className="phonics-learn-example-btn"
-                  onClick={() => speakExample(ex)}
+                  onClick={() => speakExample(ex.trim())}
                 >
                   {ex.trim()}
                 </button>
@@ -352,6 +286,7 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
             </div>
           </div>
         )}
+
       </div>
 
       {/* 导航 */}

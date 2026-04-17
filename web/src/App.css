@@ -1158,3 +1158,44 @@ body {
   align-items: center;
   justify-content: center;
 }
+
+/* === Phonics Learn - Syllable Blocks (audio file version) === */
+/* syllable块：可能是单个字母、字母组合或音节 */
+.phonics-syllable-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #1e293b;
+  background: #f1f5f9;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 4px 10px;
+  min-width: 44px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.12s;
+  line-height: 1;
+}
+.phonics-syllable-btn:hover {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  transform: scale(1.08);
+}
+.phonics-syllable-btn:active {
+  transform: scale(0.92);
+  background: #bfdbfe;
+}
+/* 无音频文件的syllable（fallback TTS） */
+.phonics-syllable-btn.no-audio {
+  background: #fef9c3;
+  border-color: #fde047;
+  color: #854d0e;
+}
+.phonics-syllable-btn.no-audio:hover {
+  background: #fef08a;
+  border-color: #facc15;
+  color: #713f12;
+}
