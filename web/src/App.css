@@ -916,3 +916,154 @@ body {
   color: #94a3b8;
   font-weight: 600;
 }
+
+/* === Phonics Learn View === */
+.phonics-learn-scene {
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding-top: 24px !important;
+  gap: 16px !important;
+}
+.phonics-learn-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  background: #fff;
+  border-radius: 20px;
+  padding: 36px 40px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  width: min(480px, 90vw);
+  max-width: 480px;
+}
+/* Big letter button */
+.phonics-phoneme-btn {
+  width: 120px;
+  height: 120px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
+  border: 3px solid #facc15;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.1s, box-shadow 0.1s;
+  position: relative;
+}
+.phonics-phoneme-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+}
+.phonics-phoneme-letter {
+  font-size: 4rem;
+  font-weight: 900;
+  color: #1e293b;
+  line-height: 1;
+}
+.phonics-phoneme-hint {
+  font-size: 0.85rem;
+  margin-top: 2px;
+  opacity: 0.6;
+}
+/* Word display */
+.phonics-learn-word {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: #1e293b;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: color 0.15s;
+}
+.phonics-learn-word:hover { color: #3b82f6; }
+.phonics-learn-word:active { color: #1d4ed8; }
+/* Phonetic */
+.phonics-learn-phonetic {
+  font-size: 1.3rem;
+  color: #64748b;
+  font-family: 'Lucida Sans Unicode', 'Arial Unicode MS', sans-serif;
+  letter-spacing: 0.05em;
+}
+/* Rule */
+.phonics-learn-rule {
+  font-size: 0.9rem;
+  color: #475569;
+  text-align: center;
+  max-width: 380px;
+  line-height: 1.5;
+}
+/* Examples */
+.phonics-learn-examples {
+  width: 100%;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.phonics-learn-examples-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.phonics-learn-example-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.phonics-learn-example-btn {
+  padding: 8px 20px;
+  border-radius: 30px;
+  border: 2px solid #cbd5e1;
+  background: #f8fafc;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.03em;
+}
+.phonics-learn-example-btn:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.phonics-learn-example-btn:active {
+  transform: scale(0.95);
+}
+/* Nav */
+.phonics-learn-nav {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: min(480px, 90vw);
+  max-width: 480px;
+}
+.phonics-learn-dots {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  flex: 1;
+  max-width: 280px;
+}
+.phonics-learn-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e2e8f0;
+  transition: all 0.2s;
+}
+.phonics-learn-dot.active {
+  background: #3b82f6;
+  width: 20px;
+  border-radius: 4px;
+}
+.phonics-learn-dot.done {
+  background: #93c5fd;
+}

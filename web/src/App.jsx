@@ -6,6 +6,7 @@ import { PHONICS_VOCAB, PHONICS_LEVELS } from './data/phonics_vocab'
 import { recordGameResult, loadStats } from './pages/StatsPage'
 import PhonicsChopGame from './PhonicsChopGame'
 import PhonicsCombineGame from './PhonicsCombineGame'
+import PhonicsLearnView from './PhonicsLearnView'
 
 // PU1 + PU2 + PU3 + Phonics 合并
 const VOCAB = { ...PU1_VOCAB, ...PU2_VOCAB, ...PU3_VOCAB }
@@ -767,15 +768,30 @@ export default function App() {
               ← Back to Courses
             </button>
           </div>
-          {unitView === 'flashcard' && activeUnit && (
-            <UnitFlashcardView
-              unitKey={activeUnit}
-              VOCAB={VOCAB}
-              progress={progress}
-              refresh={refresh}
-              startIdx={startWordIdx}
-            />
-          )}
+          {unitView === 'flashcard' && activeUnit && (() => {
+            const isPhonicsUnit = activeUnit?.startsWith('phL')
+            if (isPhonicsUnit) {
+              return (
+                <PhonicsLearnView
+                  key={`learn-${activeUnit}`}
+                  unitKey={activeUnit}
+                  unitTitle={title}
+                  allWords={words}
+                  onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
+                  onBack={() => { setUnitView(null); setActiveUnit(null) }}
+                />
+              )
+            }
+            return (
+              <UnitFlashcardView
+                unitKey={activeUnit}
+                VOCAB={VOCAB}
+                progress={progress}
+                refresh={refresh}
+                startIdx={startWordIdx}
+              />
+            )
+          })()}
           {(unitView === 'spelling' || unitView === 'random') && (() => {
             const isPhonicsUnit = activeUnit && activeUnit.startsWith('phL')
             // Level 6 → combine, Level 1-5 → chop
