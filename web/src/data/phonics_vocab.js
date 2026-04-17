@@ -1,13 +1,15 @@
 // phonics_vocab.js — Phonics course vocabulary data
-// Structure: { [unitKey]: { title, subtitle, words: [...] } }
+// Structure: { [unitKey]: { title, titleZh, subtitle, subtitleZh, words: [...] } }
 // Each word: { word, phonetic, definition, audio, image, has_image }
 
 export const PHONICS_VOCAB = {
 
-  // ── Level 1: 26 Letters + Short Vowel CVC ──────────────────────────────
+  // ── Level 1: 26字母音 + 短元音CVC ──────────────────────────────
   phL1u1: {
     title: 'Consonant Sounds',
+    titleZh: '辅音字母音',
     subtitle: 'b d f h j k l m n p r s t v w y z',
+    subtitleZh: '17个辅音字母的常规发音',
     words: [
       { word: 'bat',  phonetic: '/bæt/',  definition: 'b → /b/ (bat, ball, bed)',  audio: 'bat.mp3',  image: '', has_image: false },
       { word: 'dog',  phonetic: '/dɒɡ/',  definition: 'd → /d/ (dog, desk, door)', audio: 'dog.mp3',  image: '', has_image: false },
@@ -31,7 +33,9 @@ export const PHONICS_VOCAB = {
 
   phL1u2: {
     title: 'Special Consonants',
+    titleZh: '特殊辅音',
     subtitle: 'c g x qu',
+    subtitleZh: 'c/g的两种发音、x及qu组合',
     words: [
       { word: 'cat',   phonetic: '/kæt/',   definition: 'c → /k/ before a, o, u (cat, cup, cod)',   audio: 'cat.mp3',   image: '', has_image: false },
       { word: 'city',  phonetic: '/ˈsɪti/', definition: 'c → /s/ before e, i, y (city, cent, cycle)', audio: 'city.mp3',  image: '', has_image: false },
@@ -45,7 +49,9 @@ export const PHONICS_VOCAB = {
 
   phL1u3: {
     title: 'Short Vowels (CVC)',
+    titleZh: '短元音CVC',
     subtitle: 'a e i o u — closed syllable',
+    subtitleZh: '闭音节中5个短元音 /æ e ɪ ɒ ʌ/',
     words: [
       { word: 'cat',  phonetic: '/kæt/',  definition: 'a → /æ/ in closed syllable (cat, bag, man)',  audio: 'cat.mp3',  image: '', has_image: false },
       { word: 'pen',  phonetic: '/pen/',  definition: 'e → /e/ in closed syllable (pen, bed, red)',  audio: 'pen.mp3',  image: '', has_image: false },
@@ -60,10 +66,12 @@ export const PHONICS_VOCAB = {
     ]
   },
 
-  // ── Level 2: Long Vowels ────────────────────────────────────────────────
+  // ── Level 2: 长元音 + 魔法E ────────────────────────────────────────────────
   phL2u1: {
     title: 'Long Vowels (CV)',
+    titleZh: '开音节长元音',
     subtitle: 'Open syllable — vowel says its name',
+    subtitleZh: '开音节中元音发字母本名',
     words: [
       { word: 'me',   phonetic: '/miː/',  definition: 'e → /iː/ in open syllable (me, he, she, be)', audio: 'me.mp3',   image: '', has_image: false },
       { word: 'go',   phonetic: '/ɡəʊ/',  definition: 'o → /əʊ/ in open syllable (go, no, so)',      audio: 'go.mp3',   image: '', has_image: false },
@@ -75,7 +83,9 @@ export const PHONICS_VOCAB = {
 
   phL2u2: {
     title: 'Magic E (CVCe)',
+    titleZh: '魔法E',
     subtitle: 'Silent e makes the vowel long',
+    subtitleZh: '词尾不发音的e让前面的元音变长音',
     words: [
       { word: 'make',  phonetic: '/meɪk/', definition: 'a_e → /eɪ/ (make, cake, name, late)',  audio: 'make.mp3',  image: '', has_image: false },
       { word: 'time',  phonetic: '/taɪm/', definition: 'i_e → /aɪ/ (time, bike, fine, like)',  audio: 'time.mp3',  image: '', has_image: false },
@@ -88,10 +98,12 @@ export const PHONICS_VOCAB = {
     ]
   },
 
-  // ── Level 3: Vowel Teams ────────────────────────────────────────────────
+  // ── Level 3: 元音组合 ────────────────────────────────────────────────
   phL3u1: {
     title: 'Vowel Teams: ai / ay',
+    titleZh: 'ai / ay 组合',
     subtitle: 'ai ay → /eɪ/',
+    subtitleZh: 'ai和ay都发 /eɪ/ 音',
     words: [
       { word: 'rain',  phonetic: '/reɪn/', definition: 'ai → /eɪ/ (rain, tail, wait, sail)',  audio: 'rain.mp3',  image: '', has_image: false },
       { word: 'play',  phonetic: '/pleɪ/', definition: 'ay → /eɪ/ (play, day, say, way)',     audio: 'play.mp3',  image: '', has_image: false },
@@ -103,7 +115,9 @@ export const PHONICS_VOCAB = {
 
   phL3u2: {
     title: 'Vowel Teams: ee / ea',
+    titleZh: 'ee / ea 组合',
     subtitle: 'ee ea → /iː/',
+    subtitleZh: 'ee发长音/iː/，ea有例外bread发/e/',
     words: [
       { word: 'bee',   phonetic: '/biː/',  definition: 'ee → /iː/ (bee, tree, see, free)',    audio: 'bee.mp3',   image: '', has_image: false },
       { word: 'tea',   phonetic: '/tiː/',  definition: 'ea → /iː/ (tea, sea, read, meat)',    audio: 'tea.mp3',   image: '', has_image: false },
@@ -115,7 +129,9 @@ export const PHONICS_VOCAB = {
 
   phL3u3: {
     title: 'Vowel Teams: oa / oo',
+    titleZh: 'oa / oo 组合',
     subtitle: 'oa → /əʊ/  oo → /uː/ or /ʊ/',
+    subtitleZh: 'oa发/əʊ/，oo有两种发音/uː/(moon)和/ʊ/(book)',
     words: [
       { word: 'boat',  phonetic: '/bəʊt/', definition: 'oa → /əʊ/ (boat, coat, road, soap)',  audio: 'boat.mp3',  image: '', has_image: false },
       { word: 'moon',  phonetic: '/muːn/', definition: 'oo → /uː/ (moon, food, pool, soon)',  audio: 'moon.mp3',  image: '', has_image: false },
@@ -127,7 +143,9 @@ export const PHONICS_VOCAB = {
 
   phL3u4: {
     title: 'Vowel Teams: ou / ow / oi / oy',
+    titleZh: 'ou / ow / oi / oy 组合',
     subtitle: 'ou ow → /aʊ/  oi oy → /ɔɪ/',
+    subtitleZh: 'ou/ow发/aʊ/，oi/oy发/ɔɪ/',
     words: [
       { word: 'out',   phonetic: '/aʊt/',  definition: 'ou → /aʊ/ (out, loud, found, cloud)', audio: 'out.mp3',   image: '', has_image: false },
       { word: 'now',   phonetic: '/naʊ/',  definition: 'ow → /aʊ/ (now, cow, how, town)',     audio: 'now.mp3',   image: '', has_image: false },
@@ -137,10 +155,12 @@ export const PHONICS_VOCAB = {
     ]
   },
 
-  // ── Level 4: Consonant Digraphs + Blends ───────────────────────────────
+  // ── Level 4: 辅音组合 + 连缀 ───────────────────────────────────────────────
   phL4u1: {
     title: 'Consonant Digraphs',
+    titleZh: '辅音二合字母',
     subtitle: 'ch sh th wh ph ng nk',
+    subtitleZh: '两字母组合发一个音：ch/tʃ/、sh/ʃ/、th/θ/ð/等',
     words: [
       { word: 'chair',  phonetic: '/tʃeə/', definition: 'ch → /tʃ/ (chair, child, chip, lunch)',  audio: 'chair.mp3',  image: '', has_image: false },
       { word: 'ship',   phonetic: '/ʃɪp/',  definition: 'sh → /ʃ/ (ship, fish, shop, wish)',      audio: 'ship.mp3',   image: '', has_image: false },
@@ -155,7 +175,9 @@ export const PHONICS_VOCAB = {
 
   phL4u2: {
     title: 'Consonant Blends',
+    titleZh: '辅音连缀',
     subtitle: 'bl br cl cr dr fl fr + 3-letter blends',
+    subtitleZh: '两个或三个辅音连续发音，如bl/br/str',
     words: [
       { word: 'black',  phonetic: '/blæk/', definition: 'bl blend (black, blue, blow, blank)',    audio: 'black.mp3',  image: '', has_image: false },
       { word: 'bread',  phonetic: '/bred/', definition: 'br blend (bread, bring, brown, break)',  audio: 'bread.mp3',  image: '', has_image: false },
@@ -169,10 +191,12 @@ export const PHONICS_VOCAB = {
     ]
   },
 
-  // ── Level 5: R-Controlled Vowels + Diphthongs ──────────────────────────
+  // ── Level 5: R控制元音 + 双元音 ───────────────────────────────────────────
   phL5u1: {
     title: 'R-Controlled Vowels',
+    titleZh: 'R控制元音',
     subtitle: 'ar or er ir ur',
+    subtitleZh: '元音+r发特殊音：ar/ɑː/、or/ɔː/、er/ir/ur/ɜː/',
     words: [
       { word: 'car',   phonetic: '/kɑː/',  definition: 'ar → /ɑː/ (car, star, farm, park)',    audio: 'car.mp3',   image: '', has_image: false },
       { word: 'fork',  phonetic: '/fɔːk/', definition: 'or → /ɔː/ (fork, horse, corn, sport)', audio: 'fork.mp3',  image: '', has_image: false },
@@ -185,7 +209,9 @@ export const PHONICS_VOCAB = {
 
   phL5u2: {
     title: 'Diphthongs',
+    titleZh: '双元音',
     subtitle: '/eɪ/ /aɪ/ /ɔɪ/ /aʊ/ /əʊ/ /ɪə/ /eə/ /ʊə/',
+    subtitleZh: '8个双元音：/eɪ/蛋糕 /aɪ/我的 /ɔɪ/男孩 /aʊ/现在 /əʊ/走 /ɪə/耳朵 /eə/头发 /ʊə/贫',
     words: [
       { word: 'cake',  phonetic: '/keɪk/', definition: '/eɪ/ diphthong (cake, rain, play, they)', audio: 'cake.mp3',  image: '', has_image: false },
       { word: 'my',    phonetic: '/maɪ/',  definition: '/aɪ/ diphthong (my, time, night, fly)',   audio: 'my.mp3',    image: '', has_image: false },
@@ -198,10 +224,12 @@ export const PHONICS_VOCAB = {
     ]
   },
 
-  // ── Level 6: Special Rules ──────────────────────────────────────────────
+  // ── Level 6: 特殊规则 ──────────────────────────────────────────────
   phL6u1: {
     title: 'Silent Letters',
+    titleZh: '不发音字母',
     subtitle: 'kn- wr- -mb -bt -st',
+    subtitleZh: 'knee/wrap/climb等词中部分字母不发音',
     words: [
       { word: 'knee',   phonetic: '/niː/',   definition: 'kn- → silent k (knee, know, knife, knock)', audio: 'knee.mp3',   image: '', has_image: false },
       { word: 'write',  phonetic: '/raɪt/',  definition: 'wr- → silent w (write, wrong, wrap, wrist)', audio: 'write.mp3',  image: '', has_image: false },
@@ -214,7 +242,9 @@ export const PHONICS_VOCAB = {
 
   phL6u2: {
     title: 'Irregular Words',
+    titleZh: '不规则发音',
     subtitle: 'High-frequency sight words',
+    subtitleZh: '常见高频词的特殊发音：the/of/do/was/said等',
     words: [
       { word: 'the',   phonetic: '/ðə/',   definition: 'the → /ðə/ (most common English word)',  audio: 'the.mp3',   image: '', has_image: false },
       { word: 'said',  phonetic: '/sed/',  definition: 'said → /sed/ (not /seɪd/)',               audio: 'said.mp3',  image: '', has_image: false },
@@ -229,7 +259,9 @@ export const PHONICS_VOCAB = {
 
   phL6u3: {
     title: 'Multisyllabic Words',
+    titleZh: '多音节词',
     subtitle: 'Syllable splitting rules',
+    subtitleZh: 'pencil/paper/hospital等多音节词的拆分规则',
     words: [
       { word: 'pencil',   phonetic: '/ˈpensɪl/',  definition: 'pen·cil — VC/CV split (consonant between vowels)', audio: 'pencil.mp3',   image: '', has_image: false },
       { word: 'rabbit',   phonetic: '/ˈræbɪt/',   definition: 'rab·bit — double consonant splits (VC/CV)',        audio: 'rabbit.mp3',   image: '', has_image: false },
@@ -252,10 +284,10 @@ export const PHONICS_COURSE_UNITS = [
 ]
 
 export const PHONICS_LEVELS = [
-  { id: 'phL1', label: 'Level 1', title: '26 Letters & Short Vowels', units: ['phL1u1','phL1u2','phL1u3'] },
-  { id: 'phL2', label: 'Level 2', title: 'Long Vowels & Magic E',     units: ['phL2u1','phL2u2'] },
-  { id: 'phL3', label: 'Level 3', title: 'Vowel Teams',               units: ['phL3u1','phL3u2','phL3u3','phL3u4'] },
-  { id: 'phL4', label: 'Level 4', title: 'Consonant Digraphs & Blends', units: ['phL4u1','phL4u2'] },
-  { id: 'phL5', label: 'Level 5', title: 'R-Controlled & Diphthongs', units: ['phL5u1','phL5u2'] },
-  { id: 'phL6', label: 'Level 6', title: 'Special Rules',             units: ['phL6u1','phL6u2','phL6u3'] },
+  { id: 'phL1', label: 'Level 1', labelZh: '第一级', title: '26 Letters & Short Vowels', titleZh: '26字母音与短元音', units: ['phL1u1','phL1u2','phL1u3'] },
+  { id: 'phL2', label: 'Level 2', labelZh: '第二级', title: 'Long Vowels & Magic E',     titleZh: '长元音与魔法E', units: ['phL2u1','phL2u2'] },
+  { id: 'phL3', label: 'Level 3', labelZh: '第三级', title: 'Vowel Teams',               titleZh: '元音组合', units: ['phL3u1','phL3u2','phL3u3','phL3u4'] },
+  { id: 'phL4', label: 'Level 4', labelZh: '第四级', title: 'Consonant Digraphs & Blends', titleZh: '辅音组合与连缀', units: ['phL4u1','phL4u2'] },
+  { id: 'phL5', label: 'Level 5', labelZh: '第五级', title: 'R-Controlled & Diphthongs', units: ['phL5u1','phL5u2'] },
+  { id: 'phL6', label: 'Level 6', labelZh: '第六级', title: 'Special Rules',             titleZh: '特殊规则', units: ['phL6u1','phL6u2','phL6u3'] },
 ]

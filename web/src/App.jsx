@@ -827,11 +827,12 @@ export default function App() {
                 <div key={level.id} className={`unit-card ${allDone ? 'done' : ''}`}
                   style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
                   <div className="unit-key-row">
-                    <span className="unit-card-key">{level.label}</span>
+                    <span className="unit-card-key">{level.label} · {level.labelZh}</span>
                     {allDone && <span className="unit-stars">{'★'.repeat(3)}</span>}
                   </div>
                   <h3 className="unit-card-title">{level.title}</h3>
-                  <p className="unit-card-meta">{levelUnits.length} units</p>
+                  <h4 className="unit-card-subtitle-zh">{level.titleZh}</h4>
+                  <p className="unit-card-meta">{levelUnits.length} units · {levelUnits.length}个单元</p>
                   <div className="unit-card-actions">
                     <button className="unit-action-btn challenge"
                       style={{ background: activeCourse.color }}
@@ -862,6 +863,7 @@ export default function App() {
                 const prog = progress[key] || {}
                 const done = prog.completed
                 const stars = prog.bestScore ? Math.min(3, Math.ceil(prog.bestScore / 4)) : 0
+                const isPhonicsUnit = isPhonics && key.startsWith('phL')
                 return (
                   <div key={key} className={`unit-card ${done ? 'done' : ''}`}
                     style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
@@ -871,8 +873,11 @@ export default function App() {
                     </div>
                     <div className="unit-title-row">
                       <h3 className="unit-card-title">{unit.title}</h3>
+                      {isPhonicsUnit && unit.titleZh && <h4 className="unit-card-subtitle-zh">{unit.titleZh}</h4>}
                     </div>
-                    <p className="unit-card-meta">{unit.words.length} words</p>
+                    {isPhonicsUnit && unit.subtitleZh
+                      ? <p className="unit-card-meta">{unit.subtitleZh} · {unit.words.length}词</p>
+                      : <p className="unit-card-meta">{unit.words.length} words</p>}
                     <div className="unit-card-actions">
                       <button className="unit-action-btn challenge" onClick={() => { setActiveUnit(key); setUnitView('spelling') }}>
                         <span className="unit-action-icon">🎯</span>
