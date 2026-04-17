@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { VOCAB as PU2_VOCAB } from './data/pu2_vocab'
 import { PU3_VOCAB } from './data/pu3_vocab'
 import { PU1_VOCAB } from './data/pu1_vocab'
+import { PHONICS_VOCAB, PHONICS_LEVELS } from './data/phonics_vocab'
 import { recordGameResult, loadStats } from './pages/StatsPage'
 
-// PU1 + PU2 + PU3 合并
+// PU1 + PU2 + PU3 + Phonics 合并
 const VOCAB = { ...PU1_VOCAB, ...PU2_VOCAB, ...PU3_VOCAB }
-const getAllWordsForVocab = (key) => VOCAB[key]?.words || []
-const getVocabData = (key) => VOCAB[key] || {}
+const getAllWordsForVocab = (key) => (VOCAB[key] || PHONICS_VOCAB[key])?.words || []
+const getVocabData = (key) => VOCAB[key] || PHONICS_VOCAB[key] || {}
+const isPhonicsKey = (key) => key.startsWith('phL')
 import StatsPage from './pages/StatsPage'
 import './App.css'
 
@@ -648,6 +650,19 @@ if (window.speechSynthesis) {
 // ─── 课程数据（可扩展 PU1/PU3）──────────────────────
 const COURSES = [
   {
+    id: 'Phonics',
+    icon: '🔤',
+    title: 'Phonics',
+    subtitle: '44 Phonemes · 6 Levels',
+    color: '#f59e0b',
+    bg: '#fef3c7',
+    cover: null,
+    units: PHONICS_LEVELS.flatMap(l => l.units),
+    locked: false,
+    isPhonics: true,
+    levels: PHONICS_LEVELS,
+  },
+  {
     id: 'PU1',
     icon: '🌱',
     title: 'Hello',
@@ -765,58 +780,104 @@ export default function App() {
 
   // ── 第二级：课程内（单元列表） ─────────────────
   if (activeCourse) {
+    const isPhonics = activeCourse.isPhonics
+    // Phonics: show level grid when no unit selected, unit grid when level selected
+    const selectedLevel = isPhonics && activeUnit
+      ? activeCourse.levels.find(l => activeCourse.units.includes(activeUnit) && l.units.includes(activeUnit))
+      : null
+
     return (
       <div className="app level-view" style={{ "--card-color": activeCourse.color, "--card-bg": activeCourse.bg }} onClick={onFirstClick}>
-        <button className="back-btn" onClick={() => { setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}>
-          ← Back to Courses
+        <button className="back-btn" onClick={() => {
+          if (isPhonics && selectedLevel) {
+            setActiveUnit(null) // back to level grid
+          } else {
+            setActiveCourse(null); setActiveUnit(null); setUnitView(null)
+          }
+        }}>
+          ← {isPhonics && selectedLevel ? 'Back to Levels' : 'Back to Courses'}
         </button>
         <div className="level-banner">
           <span className="level-icon">{activeCourse.icon}</span>
           <div>
             <h1 className="level-title">{activeCourse.id} · {activeCourse.title}</h1>
-            <p className="level-subtitle">{activeCourse.subtitle}</p>
+            <p className="level-subtitle">{selectedLevel ? selectedLevel.title : activeCourse.subtitle}</p>
           </div>
         </div>
 
-        <div className="random-btn-wrap">
-          <button className="btn btn-lg"
-            onClick={() => { setUnitView('random'); setActiveUnit(null) }}>
-            🎲 Random Challenge (10 words)
-          </button>
-        </div>
+        {isPhonics && !selectedLevel && (
+          // Phonics Level 1-6 selection
+          <div className="unit-grid">
+            {activeCourse.levels.map(level => {
+              const levelUnits = level.units
+              const doneCount = levelUnits.filter(k => progress[k]?.completed).length
+              const allDone = doneCount === levelUnits.length
+              return (
+                <div key={level.id} className={`unit-card ${allDone ? 'done' : ''}`}
+                  style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
+                  <div className="unit-key-row">
+                    <span className="unit-card-key">{level.label}</span>
+                    {allDone && <span className="unit-stars">{'★'.repeat(3)}</span>}
+                  </div>
+                  <h3 className="unit-card-title">{level.title}</h3>
+                  <p className="unit-card-meta">{levelUnits.length} units</p>
+                  <div className="unit-card-actions">
+                    <button className="unit-action-btn challenge"
+                      style={{ background: activeCourse.color }}
+                      onClick={() => setActiveUnit(level.units[0])}>
+                      <span className="unit-action-label">Start →</span>
+                    </button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
 
-        <div className="unit-grid">
-          {activeCourse.units.map(key => {
-            const unit = VOCAB[key]
-            if (!unit) return null
-            const prog = progress[key] || {}
-            const done = prog.completed
-            const stars = prog.bestScore ? Math.min(3, Math.ceil(prog.bestScore / 4)) : 0
-            return (
-              <div key={key} className={`unit-card ${done ? 'done' : ''}`}
-                style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
-                <div className="unit-key-row">
-                  <span className="unit-card-key">{key.replace('pu3u', 'PU3U').replace('pu2u', 'PU2U').replace('pu1u', 'PU1U')}</span>
-                  {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
-                </div>
-                <div className="unit-title-row">
-                  <h3 className="unit-card-title">{unit.title}</h3>
-                </div>
-                <p className="unit-card-meta">{unit.words.length} words</p>
-                <div className="unit-card-actions">
-                  <button className="unit-action-btn challenge" onClick={() => { setActiveUnit(key); setUnitView('spelling') }}>
-                    <span className="unit-action-icon">🎯</span>
-                    <span className="unit-action-label">Challenge</span>
-                  </button>
-                  <button className="unit-action-btn learn" onClick={() => { setActiveUnit(key); setUnitView('flashcard') }}>
-                    <span className="unit-action-icon">📖</span>
-                    <span className="unit-action-label">Learn</span>
-                  </button>
-                </div>
+        {(isPhonics ? selectedLevel : true) && (
+          <>
+            {!isPhonics && (
+              <div className="random-btn-wrap">
+                <button className="btn btn-lg"
+                  onClick={() => { setUnitView('random'); setActiveUnit(null) }}>
+                  🎲 Random Challenge (10 words)
+                </button>
               </div>
-            )
-          })}
-        </div>
+            )}
+            <div className="unit-grid">
+              {(isPhonics ? (selectedLevel ? selectedLevel.units : []) : activeCourse.units).map(key => {
+                const unit = VOCAB[key] || PHONICS_VOCAB[key]
+                if (!unit) return null
+                const prog = progress[key] || {}
+                const done = prog.completed
+                const stars = prog.bestScore ? Math.min(3, Math.ceil(prog.bestScore / 4)) : 0
+                return (
+                  <div key={key} className={`unit-card ${done ? 'done' : ''}`}
+                    style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
+                    <div className="unit-key-row">
+                      <span className="unit-card-key">{key.replace('phL', 'L').replace('pu3u', 'PU3U').replace('pu2u', 'PU2U').replace('pu1u', 'PU1U')}</span>
+                      {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
+                    </div>
+                    <div className="unit-title-row">
+                      <h3 className="unit-card-title">{unit.title}</h3>
+                    </div>
+                    <p className="unit-card-meta">{unit.words.length} words</p>
+                    <div className="unit-card-actions">
+                      <button className="unit-action-btn challenge" onClick={() => { setActiveUnit(key); setUnitView('spelling') }}>
+                        <span className="unit-action-icon">🎯</span>
+                        <span className="unit-action-label">Challenge</span>
+                      </button>
+                      <button className="unit-action-btn learn" onClick={() => { setActiveUnit(key); setUnitView('flashcard') }}>
+                        <span className="unit-action-icon">📖</span>
+                        <span className="unit-action-label">Learn</span>
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
     )
   }
