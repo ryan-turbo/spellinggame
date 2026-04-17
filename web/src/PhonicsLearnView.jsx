@@ -8,7 +8,48 @@
  * - 下方发音规则 + 3 个示例单词
  */
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+// ============================================================
+// 英音音色选取：优先 Google WaveNet / Premium 自然人声
+// ============================================================
+let _gbVoice = null
+
+function getGBVoice() {
+  if (_gbVoice) return _gbVoice
+  const voices = speechSynthesis.getVoices()
+  if (!voices.length) return null
+
+  // 找英音 voice，优先顺序：
+  // 1. Google UK WaveNet/Premium (localService=true, name 含 wave/high/premium)
+  // 2. System British English
+  // 3. 任意 en-GB
+  const priority = (v) => {
+    const n = v.name.toLowerCase()
+    const isGB = v.lang === 'en-GB'
+    const isUK = v.lang.startsWith('en-GB') || v.lang === 'en-GB'
+    if (!isGB && !isUK) return 0
+    let score = 1
+    if (n.includes('wave') || n.includes('premium') || n.includes('high') || n.includes('neural')) score += 4
+    if (n.includes('google')) score += 3
+    if (v.localService) score += 2
+    if (n.includes('samantha') || n.includes('karen') || n.includes('daniel') || n.includes('emma') || n.includes('james')) score += 1
+    return score
+  }
+
+  const sorted = [...voices].sort((a, b) => priority(b) - priority(a))
+  _gbVoice = sorted[0] || null
+  console.log('[PhonicsLearn] selected voice:', _gbVoice?.name, _gbVoice?.lang)
+  return _gbVoice
+}
+
+// 初始化音色（异步加载 voices）
+function initVoice() {
+  const voices = speechSynthesis.getVoices()
+  if (voices.length > 0) { getGBVoice(); return }
+  speechSynthesis.onvoiceschanged = () => { getGBVoice() }
+}
+initVoice()
 
 // ============================================================
 // IPA → 真实词映射（TTS 读这个词，发出对应 IPA 音）
@@ -137,22 +178,32 @@ function speakPhoneme(ipa) {
   const word = IPA_TO_WORD[ipa] || IPA_TO_WORD[ipa.toLowerCase()] || ipa
   const utter = new SpeechSynthesisUtterance(word)
   utter.lang = 'en-GB'
-  utter.rate = 0.8
+  utter.rate = 0.82
+  const v = getGBVoice()
+  if (v) utter.voice = v
   speechSynthesis.speak(utter)
 }
 
 // 发完整单词
 function speakWord(word) {
   speechSynthesis.cancel()
-  const u = new SpeechSynthesisUtterance(word)
-  u.lang = 'en-GB'
-  u.rate = 0.85
-  speechSynthesis.speak(u)
+  const utter = new SpeechSynthesisUtterance(word)
+  utter.lang = 'en-GB'
+  utter.rate = 0.88
+  const v = getGBVoice()
+  if (v) utter.voice = v
+  speechSynthesis.speak(utter)
 }
 
 // 发示例词
 function speakExample(ex) {
-  speakWord(ex.trim())
+  speechSynthesis.cancel()
+  const utter = new SpeechSynthesisUtterance(ex.trim())
+  utter.lang = 'en-GB'
+  utter.rate = 0.88
+  const v = getGBVoice()
+  if (v) utter.voice = v
+  speechSynthesis.speak(utter)
 }
 
 // syllables → IPA 列表
@@ -179,6 +230,13 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
   const [current, setCurrent] = useState(0)
   const w = allWords[current]
   const total = allWords.length
+
+  // 确保 voices 加载后再选一次（异步 voices 列表）
+  useEffect(() => {
+    const load = () => { _gbVoice = null; getGBVoice() }
+    load()
+    speechSynthesis.onvoiceschanged = load
+  }, [])
 
   if (!w) return (
     <div className="spelling-scene" style={{ alignItems: 'center', justifyContent: 'center' }}>
