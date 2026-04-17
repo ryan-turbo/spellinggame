@@ -9,7 +9,8 @@ import { recordGameResult, loadStats } from './pages/StatsPage'
 const VOCAB = { ...PU1_VOCAB, ...PU2_VOCAB, ...PU3_VOCAB }
 const getAllWordsForVocab = (key) => (VOCAB[key] || PHONICS_VOCAB[key])?.words || []
 const getVocabData = (key) => VOCAB[key] || PHONICS_VOCAB[key] || {}
-const isPhonicsKey = (key) => key.startsWith('phL')
+// Phonics visible only on localhost / local dev
+const IS_DEV = ['localhost', '127.0.0.1', ''].includes(window.location.hostname.split(':')[0])
 import StatsPage from './pages/StatsPage'
 import './App.css'
 
@@ -649,7 +650,7 @@ if (window.speechSynthesis) {
 
 // ─── 课程数据（可扩展 PU1/PU3）──────────────────────
 const COURSES = [
-  {
+  IS_DEV ? {
     id: 'Phonics',
     icon: '🔤',
     title: 'Phonics',
@@ -661,6 +662,16 @@ const COURSES = [
     locked: false,
     isPhonics: true,
     levels: PHONICS_LEVELS,
+  } : {
+    id: 'Phonics',
+    icon: '🔤',
+    title: 'Phonics',
+    subtitle: 'Coming Soon',
+    color: '#94a3b8',
+    bg: '#f1f5f9',
+    cover: null,
+    units: [],
+    locked: true,
   },
   {
     id: 'PU1',
