@@ -4,6 +4,8 @@ import { PU3_VOCAB } from './data/pu3_vocab'
 import { PU1_VOCAB } from './data/pu1_vocab'
 import { PHONICS_VOCAB, PHONICS_LEVELS } from './data/phonics_vocab'
 import { recordGameResult, loadStats } from './pages/StatsPage'
+import PhonicsChopGame from './PhonicsChopGame'
+import PhonicsCombineGame from './PhonicsCombineGame'
 
 // PU1 + PU2 + PU3 + Phonics 合并
 const VOCAB = { ...PU1_VOCAB, ...PU2_VOCAB, ...PU3_VOCAB }
@@ -774,16 +776,41 @@ export default function App() {
               startIdx={startWordIdx}
             />
           )}
-          {(unitView === 'spelling' || unitView === 'random') && (
-            <SpellingGame
-              key={`${unitView}-${activeUnit || 'all'}-${Date.now()}`}
-              unitKey={activeUnit || 'random'}
-              unitTitle={title}
-              allWords={words}
-              onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
-              onBack={() => { setUnitView(null); setActiveUnit(null) }}
-            />
-          )}
+          {(unitView === 'spelling' || unitView === 'random') && (() => {
+            const isPhonicsUnit = activeUnit && activeUnit.startsWith('phL')
+            // Level 6 → combine, Level 1-5 → chop
+            const isCombine = isPhonicsUnit && activeUnit.startsWith('phL6')
+            if (isCombine) return (
+              <PhonicsCombineGame
+                key={`combine-${activeUnit}`}
+                unitKey={activeUnit}
+                unitTitle={title}
+                allWords={words}
+                onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
+                onBack={() => { setUnitView(null); setActiveUnit(null) }}
+              />
+            )
+            if (isPhonicsUnit) return (
+              <PhonicsChopGame
+                key={`chop-${activeUnit}`}
+                unitKey={activeUnit}
+                unitTitle={title}
+                allWords={words}
+                onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
+                onBack={() => { setUnitView(null); setActiveUnit(null) }}
+              />
+            )
+            return (
+              <SpellingGame
+                key={`${unitView}-${activeUnit || 'all'}-${Date.now()}`}
+                unitKey={activeUnit || 'random'}
+                unitTitle={title}
+                allWords={words}
+                onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
+                onBack={() => { setUnitView(null); setActiveUnit(null) }}
+              />
+            )
+          })()}
         </div>
       </div>
     )
