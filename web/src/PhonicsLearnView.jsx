@@ -39,8 +39,6 @@ const SYLLABLE_IPA = {
   pen: 'pen', ke:  'k',   ta:  't',   tal: 'tɔː',
   mb:  'mb',  rab: 'ræb', tas: 'tæs', hos: 'hɒs',
   la:  'lə',  pi:  'p',   bt:  'bt',  brel: 'brel',
-  // 高频音节
-  bit: 'bɪt',
 }
 
 // ── 97 syllables → 音素音频文件 ─────────────────────────────────
@@ -148,40 +146,96 @@ const SYLLABLE_AUDIO = {
 let _audio = null
 
 function stopAudio() {
-  if (_audio) { _audio.pause(); _audio.currentTime = 0 }
+  if (_audio) {
+    try { _audio.pause() } catch (_) {}
+    _audio.src = ''
+    _audio = null
+  }
 }
 
-function playAudio(src) {
+function playAudio(src, maxDurationSec = null) {
   return new Promise((resolve) => {
     stopAudio()
     _audio = new Audio()
     _audio.src = src
-    _audio.onended = resolve
-    _audio.onerror = resolve
-    _audio.play().catch(resolve)
+    let settled = false
+    let timeoutId = null
+    const settle = () => { 
+      if (!settled) { 
+        settled = true 
+        if (timeoutId) clearTimeout(timeoutId)
+        resolve() 
+      } 
+    }
+    _audio.onerror  = settle
+    _audio.onended   = settle
+    _audio.onstall  = settle
+    _audio.onwaiting = settle
+    _audio.play().then(() => { 
+      // 如果设置了最大时长，自动停止
+      if (maxDurationSec) {
+        timeoutId = setTimeout(() => {
+          _audio.pause()
+          settle()
+        }, maxDurationSec * 1000)
+      }
+      /* 播放成功，onended 会触发 settle */ 
+    }).catch(settle)
   })
 }
 
-async function speakPhoneme(syl) {
+// 播放音素音频，成功返回 true，失败返回 false
+async function tryPlayPhonemeAudio(syl) {
   const src = SYLLABLE_AUDIO[syl]
-  if (src) {
-    await playAudio(src)
-  } else {
-    try {
-      const utter = new SpeechSynthesisUtterance(syl)
-      utter.lang = 'en-GB'
-      utter.rate = 0.8
-      speechSynthesis.speak(utter)
-    } catch (e) { /* ignore */ }
+  if (!src) return false
+  try {
+    speechSynthesis.cancel()
+    // 音素音频只播放 0.3 秒（提取开头部分作为音素）
+    await playAudio(src, 0.3)
+    return true
+  } catch (_) {
+    return false
   }
 }
 
-async function speakWord(word) {
-  await playAudio(`/audio/${encodeURIComponent(word)}.mp3`)
+// 播放音素音频：优先用音频文件，失败时用 TTS
+async function speakPhoneme(syl) {
+  const played = await tryPlayPhonemeAudio(syl)
+  if (!played) {
+    // 音频文件不存在或播放失败，用 TTS 读出该音素
+    const utter = new SpeechSynthesisUtterance(syl)
+    utter.lang = 'en-GB'
+    utter.rate = 0.85
+    speechSynthesis.speak(utter)
+  }
 }
 
+// 播放单词音频：优先用音频文件，失败时用 TTS
+async function speakWord(word) {
+  const src = `/audio/${word.replace(/ /g, '_')}.mp3`
+  let played = false
+  try {
+    speechSynthesis.cancel()
+    await playAudio(src)
+    played = true
+  } catch (_) {}
+  if (!played) {
+    // 音频文件不存在或播放失败，用 TTS
+    const utter = new SpeechSynthesisUtterance(word)
+    utter.lang = 'en-GB'
+    speechSynthesis.speak(utter)
+  }
+}
+
+// 播放示例词音频
 async function speakExample(word) {
-  await playAudio(`/audio/${encodeURIComponent(word)}.mp3`)
+  const src = `/audio/${word.replace(/ /g, '_')}.mp3`
+  try {
+    speechSynthesis.cancel()
+    await playAudio(src)
+  } catch (_) {
+    // 示例词播放失败，静默处理，不 fallback
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -226,7 +280,7 @@ function getIpa(syl) {
 // ── Component ─────────────────────────────────────────────────
 import { useState, useEffect } from 'react'
 
-export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onComplete, onBack }) {
+export default function PhonicsLearnView({ unitKey, unitTitle, unitSubtitleZh, unitSubtitle, allWords, onComplete, onBack }) {
   const [current, setCurrent] = useState(0)
   const w = allWords[current]
   const total = allWords.length
@@ -274,9 +328,12 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
       {/* 学习卡片 */}
       <div className="phonics-learn-card">
 
-        {/* 规则说明 */}
+        {/* 规则说明 + 中文副标题同行 */}
         {w.definition && (
-          <div className="phonics-learn-rule">{w.definition}</div>
+          <div className="phonics-learn-rule">
+            {w.definition}
+            {unitSubtitleZh && <span className="phonics-learn-rule-zh"> · {unitSubtitleZh}</span>}
+          </div>
         )}
 
         {/* 主视觉：焦点字母大按钮 + IPA */}
@@ -286,7 +343,7 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
           <span className="phonics-phoneme-hint">🔊 tap to hear</span>
         </div>
 
-        {/* 主单词音素分解（焦点音素红色高亮） */}
+        {/* 主单词音素分解：字母+IPA上下对齐成一列 */}
         <div className="phonics-learn-mainword-row">
           <div className="phonics-learn-word">
             {mainWordParts.map((part, i) => {
@@ -298,7 +355,8 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
                   onClick={() => speakPhoneme(part.syl)}
                   title={part.isFocus ? `Focus: /${getIpa(part.syl)}/` : `/${getIpa(part.syl)}/`}
                 >
-                  {part.text}
+                  <span className={`syllable-letter${part.isFocus ? ' focus' : ''}`}>{part.text}</span>
+                  <span className={`syllable-ipa${part.isFocus ? ' focus' : ''}`}>/{getIpa(part.syl)}/</span>
                 </span>
               )
             })}
@@ -306,19 +364,6 @@ export default function PhonicsLearnView({ unitKey, unitTitle, allWords, onCompl
           <button className="phonics-word-speak-btn" onClick={() => speakWord(w.word)} title="Hear full word">
             🔊
           </button>
-        </div>
-
-        {/* IPA标注行（焦点标红） */}
-        <div className="phonics-letter-ipa-row">
-          {mainWordParts.map((part, i) => (
-            <span
-              key={i}
-              className="phonics-letter-ipa"
-              style={{ minWidth: 44, textAlign: 'center', color: part.isFocus ? '#ef4444' : undefined }}
-            >
-              /{getIpa(part.syl)}/
-            </span>
-          ))}
         </div>
 
         {/* 示例词（焦点字母标红） */}

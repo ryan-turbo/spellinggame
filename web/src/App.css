@@ -207,7 +207,9 @@ body {
 /* ─── 闯关场景 ─────────────────────────────────────── */
 .spelling-scene { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 .spelling-header { width: 100%; display: flex; align-items: center; gap: 12px; }
-.spelling-title { font-size: 1.1rem; font-weight: 700; flex: 1; }
+.spelling-title { font-size: 1.1rem; font-weight: 700; }
+.spelling-title-group { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.spelling-title-zh { font-size: 0.8rem; color: #64748b; font-weight: 400; }
 .spelling-score { font-size: 1.2rem; font-weight: 800; color: var(--accent); }
 
 .spelling-progress-bar { width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
@@ -814,6 +816,21 @@ body {
   font-size: 0.8rem;
   color: #94a3b8;
 }
+/* Challenge 单词图片 */
+.combine-word-image-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+.combine-word-image {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
 .combine-pool {
   display: flex;
   gap: 10px;
@@ -841,15 +858,20 @@ body {
   background: white;
   border: 2px solid #f59e0b;
   border-radius: 10px;
-  padding: 8px 16px;
+  padding: 12px 20px;
+  min-width: 56px;
+  min-height: 48px;
   font-size: 1.4rem;
   font-weight: 700;
   color: #92400e;
-  cursor: grab;
+  cursor: pointer;
   user-select: none;
   box-shadow: 0 2px 6px rgba(245,158,11,0.2);
   transition: all 0.15s;
   font-family: 'Georgia', serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .combine-piece:hover {
   background: #fffbeb;
@@ -866,6 +888,78 @@ body {
   font-size: 0.9rem;
   display: flex;
   align-items: center;
+}
+.combine-slot.cursor {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  animation: blink-border 1s infinite;
+}
+@keyframes blink-border {
+  0%, 100% { border-color: #3b82f6; }
+  50% { border-color: #93c5fd; }
+}
+.combine-slot.wrong {
+  border-color: #ef4444;
+  background: #fef2f2;
+  animation: shake 0.4s;
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.combine-pool-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+.combine-piece.used {
+  opacity: 0;
+  pointer-events: none;
+  height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+.combine-piece.shake {
+  animation: shake 0.4s;
+}
+.combine-pool-done {
+  color: #22c55e;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+}
+
+/* Hear word again button */
+.challenge-replay-btn {
+  padding: 10px 24px;
+  border-radius: 30px;
+  border: 2px solid #3b82f6;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.02em;
+}
+.challenge-replay-btn:hover {
+  background: #dbeafe;
+  transform: translateY(-1px);
+}
+.challenge-replay-btn:active {
+  transform: scale(0.96);
+}
+.challenge-replay-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+  transform: none;
 }
 
 /* === Phonics Level Group Headers === */
@@ -936,43 +1030,151 @@ body {
   width: min(480px, 90vw);
   max-width: 480px;
 }
+.phonics-learn-extra-title {
+  font-size: 0.9rem;
+  color: #475569;
+  font-weight: 500;
+  text-align: center;
+}
+.phonics-learn-rule-zh {
+  color: #64748b;
+  font-weight: 400;
+  margin-left: 6px;
+}
 /* Big letter button */
+/* ── Phonics Learn ── */
+.phonics-learn-card {
+  background: white;
+  border-radius: 24px;
+  padding: 24px 20px;
+  width: min(520px, 92vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+  border: 1px solid #e2e8f0;
+}
+
+/* 主字母大按钮 */
 .phonics-phoneme-btn {
-  width: 120px;
-  height: 120px;
-  border-radius: 20px;
+  width: 140px;
+  height: 140px;
+  border-radius: 24px;
   background: linear-gradient(135deg, #fef9c3 0%, #fef08a 100%);
   border: 3px solid #facc15;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 4px;
   cursor: pointer;
   user-select: none;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: transform 0.12s, box-shadow 0.12s;
   position: relative;
+  overflow: visible;
 }
 .phonics-phoneme-btn:active {
-  transform: scale(0.95);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transform: scale(0.94);
 }
 .phonics-phoneme-letter {
-  font-size: 4rem;
+  font-size: 4.5rem;
   font-weight: 900;
   color: #1e293b;
   line-height: 1;
+  margin: 0;
+}
+.phonics-phoneme-ipa {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #3b82f6;
+  letter-spacing: 0.05em;
+  margin: 0;
 }
 .phonics-phoneme-hint {
   font-size: 0.7rem;
-  margin-top: 2px;
-  opacity: 0.6;
+  color: #64748b;
+  opacity: 0.7;
+  margin: 0;
 }
-.phonics-phoneme-ipa {
-  font-size: 1.4rem;
+
+/* 主单词音素行（字母 + IPA 上下对齐） */
+.phonics-learn-mainword-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.phonics-learn-word {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.phonics-syllable-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 12px;
+  border: 2px solid #cbd5e1;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.15s;
+  min-width: 44px;
+  user-select: none;
+  gap: 2px;
+}
+.phonics-syllable-btn:hover {
+  border-color: #3b82f6;
+  background: #eff6ff;
+}
+.phonics-syllable-btn.focus {
+  border-color: #ef4444;
+  background: #fef2f2;
+}
+.phonics-syllable-btn:active {
+  transform: scale(0.92);
+}
+.phonics-syllable-btn.no-audio {
+  opacity: 0.55;
+}
+.syllable-letter {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #334155;
+  line-height: 1;
+}
+.syllable-letter.focus { color: #ef4444; }
+.syllable-ipa {
+  font-size: 0.8rem;
+  font-family: 'Lucida Sans Unicode', 'Arial Unicode MS', sans-serif;
+  color: #64748b;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+.syllable-ipa.focus { color: #ef4444; font-weight: 600; }
+
+/* IPA 标注行：与字母一一对应上下对齐 */
+.phonics-letter-ipa-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.phonics-letter-ipa {
+  font-size: 1rem;
+  font-family: 'Lucida Sans Unicode', 'Arial Unicode MS', sans-serif;
+  color: #64748b;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  padding: 0 2px;
+}
+.phonics-letter-ipa.focus {
+  color: #ef4444;
   font-weight: 700;
-  color: #3b82f6;
-  letter-spacing: 0.04em;
-  margin-bottom: 2px;
 }
 /* Word display */
 .phonics-learn-word {

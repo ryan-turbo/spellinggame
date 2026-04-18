@@ -746,6 +746,7 @@ export default function App() {
 
   // ── 第三级：闯关 / 闪卡 / 随机闯关 ─────────────
   if (activeCourse && unitView) {
+    const vocab = activeUnit ? getVocabData(activeUnit) : null
     const words = unitView === 'random'
       ? (() => {
           const all = activeCourse.units.flatMap(k => VOCAB[k]?.words || [])
@@ -776,6 +777,8 @@ export default function App() {
                   key={`learn-${activeUnit}`}
                   unitKey={activeUnit}
                   unitTitle={title}
+                  unitSubtitleZh={vocab?.subtitleZh}
+                  unitSubtitle={vocab?.subtitle}
                   allWords={words}
                   onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
                   onBack={() => { setUnitView(null); setActiveUnit(null) }}
@@ -794,25 +797,15 @@ export default function App() {
           })()}
           {(unitView === 'spelling' || unitView === 'random') && (() => {
             const isPhonicsUnit = activeUnit && activeUnit.startsWith('phL')
-            // Level 6 → combine, Level 1-5 → chop
-            const isCombine = isPhonicsUnit && activeUnit.startsWith('phL6')
-            if (isCombine) return (
+            if (isPhonicsUnit) return (
               <PhonicsCombineGame
                 key={`combine-${activeUnit}`}
                 unitKey={activeUnit}
                 unitTitle={title}
+                unitSubtitleZh={vocab?.subtitleZh}
+                unitSubtitle={vocab?.subtitle}
                 allWords={words}
-                onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
-                onBack={() => { setUnitView(null); setActiveUnit(null) }}
-              />
-            )
-            if (isPhonicsUnit) return (
-              <PhonicsChopGame
-                key={`chop-${activeUnit}`}
-                unitKey={activeUnit}
-                unitTitle={title}
-                allWords={words}
-                onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
+                onComplete={() => { refresh(); setUnitView(null); setActiveUnit(null) }}
                 onBack={() => { setUnitView(null); setActiveUnit(null) }}
               />
             )
