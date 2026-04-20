@@ -755,7 +755,7 @@ export default function App() {
               unitKey={activeUnit || 'random'}
               unitTitle={title}
               allWords={words}
-              onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
+              onComplete={() => { refresh(); setUnitView(null); setActiveUnit(null) }}
               onBack={() => { setUnitView(null); setActiveUnit(null) }}
             />
           )}
