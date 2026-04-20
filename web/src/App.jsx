@@ -746,6 +746,7 @@ export default function App() {
               progress={progress}
               refresh={refresh}
               startIdx={startWordIdx}
+              onBack={() => { setUnitView(null); setActiveUnit(null) }}
             />
           )}
           {(unitView === 'spelling' || unitView === 'random') && (
@@ -909,7 +910,7 @@ export default function App() {
   )
 }
 // ─── 辅助：单元闪卡浏览 ─────────────────────────────
-function UnitFlashcardView({ unitKey, VOCAB, progress, refresh, startIdx = 0 }) {
+function UnitFlashcardView({ unitKey, VOCAB, progress, refresh, startIdx = 0, onBack }) {
   const unit = VOCAB[unitKey]
   const words = (unit?.words || []).map(w => ({ ...w, unitTitle: unit.title }))
   const [idx, setIdx] = useState(startIdx)
@@ -930,6 +931,9 @@ function UnitFlashcardView({ unitKey, VOCAB, progress, refresh, startIdx = 0 }) 
   if (!words.length) return null
   return (
     <div className="app flashcard-standalone">
+      {onBack && (
+        <button className="back-btn" onClick={onBack} style={{ marginBottom: '12px' }}>← Back to Unit List</button>
+      )}
       <FlashCard word={words[idx]} unitTitle={words[idx].unitTitle} index={idx} total={words.length} onSpeak={speak} />
       <div className="flashcard-controls">
         <button className="btn btn-secondary" onClick={() => setIdx(i => Math.max(0, i - 1))}>← Prev</button>

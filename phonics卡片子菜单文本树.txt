@@ -1,0 +1,225 @@
+phonics卡片子菜单文本树
+Level 1 The Alphabet
+Unit 1 A.B.C
+Aa 示例单词：ax ant apple
+Bb 示例单词：bear bird bed
+Cc 示例单词：cat cup car
+Unit 2 D.E.F
+Dd 示例单词：dog desk duck
+Ee 示例单词：elbow envelope elephant
+Ff 示例单词：fish fan farm 
+Unit3 G.H.I
+Gg 示例单词：goat gift girl
+Hh 示例单词：hat house hot dog
+Ii 示例单词：insect ink igloo
+Unit4 J.K.L
+Jj 示例单词：jet jam juice
+Kk 示例单词：kangaroo key king 
+Ll 示例单词：lion lamp leaf 
+Unit 5 M.N.O
+Mm 示例单词：monkey milk money 
+Nn 示例单词：nut net nest
+Oo 示例单词：octopus ox olive
+Unit6 P.Q.R
+Pp 示例单词：peach panda pineapple
+Qq 示例单词：quiz quilt question
+Rr 示例单词：rabbit rose rice
+Unit7 S.T.U.V
+Ss 示例单词：seal sun soap
+Tt 示例单词：turtle tent tiger
+Uu 示例单词：umbrella up uncle
+Vv 示例单词：van vet vest
+Unit8 W.X.Y.Z
+Ww 示例单词：wolf web water
+Xx 示例单词：fox box six
+Yy 示例单词：yak yogurt yacht
+Zz 示例单词：zero zoo zebra
+
+Level 2 Short Vowels
+Unit 1 short a-1
+a 示例单词：cat ant yak
+am 示例单词：ram jam yam
+an 示例单词：fan man pan
+Unit 2 short a-2
+ad 示例单词：dad pad
+ag 示例单词：bag rag
+ap 示例单词：cap map nap
+at 示例单词：bat rat hat 
+Unit 3 short e
+e 示例单词：web egg vet
+et 示例单词：jet net wet
+en 示例单词：hen pen 
+ed 示例单词：red bed
+Unit4 short i-1
+i 示例单词：hip ink zip
+ip 示例单词：tip sip rip
+ib 示例单词：bib rib
+id 示例单词：kid lid
+Unit 5 short i-2
+in 示例单词：pin fin win 
+ig 示例单词：fig big dig 
+it 示例单词：pit hit
+ix 示例单词：six mix 
+Unit6 short o
+o 示例单词：fox log rod 
+ot 示例单词：pot hot cot
+op 示例单词：hop pop top
+Unit 7 short u-1
+u 示例单词：up jug hug
+ug 示例单词：bug rug mug
+ud 示例单词：bud mud 
+up 示例单词：pup cup
+
+Unit8 short u-2
+ut 示例单词：nut hut cut
+ub 示例单词：cub tub
+um 示例单词：gum hum
+un 示例单词：bun run fun
+
+Level3 Long Vowels
+Unit 1 long a
+a_e 示例单词：tape cape cane
+ame 示例单词：game name
+ake 示例单词：cake lake
+ate 示例单词：gate skate
+ave 示例单词：wave cave
+Unit2 long i
+i_e 示例单词：kite pine ripe
+ime 示例单词：lime time
+ike 示例单词：bike hike
+ive 示例单词：five dive
+ine 示例单词：nine line
+Unit 3 long o & long u
+0_e 示例单词：home bone rope
+u_e 示例单词：cube mute cute
+u_e* 示例单词：tube june rule
+Unit4 long a
+ai 示例单词：rain nail tail
+ay 示例单词：bay day say
+ai*示例单词：sail mail
+Unit5 long e
+ee 示例单词：bee feet seed
+ea 示例单词：leaf eat meat
+y 示例单词：candy happy
+ey 示例单词：key money 
+Unit6 long i
+igh 示例单词：light night high
+ie 示例单词：pie tie lie
+y*示例单词：spy sky cry 
+Unit 7 long o
+oa 示例单词：boat coat soap
+ow 示例单词：bow row yellow
+oa*示例单词：goat toad
+ow*示例单词：elbow window
+Unit8 long u
+ue 示例单词：blue glue clue
+ui 示例单词：fruit suit
+ew 示例单词：new dew
+oo 示例单词：moon zoo food
+
+Level 4 Consonant Blends
+Unit 1
+bl 示例单词：black blanket
+cl 示例单词：clock club 
+br 示例单词：broom bride
+cr 示例单词：crab crocodile 
+fl 示例单词：fly flay
+gl 示例单词：globe glass
+Unit 2
+fr 示例单词：frog friday 
+gr 示例单词：green grass
+pl 示例单词：plate play 
+sl 示例单词：slide sleep
+dr 示例单词：drum dress 
+tr 示例单词：truck tree 
+Unit 3
+sm 示例单词：smile smoke
+sn 示例单词：snake snow 
+sp 示例单词：spoon spot 
+sw 示例单词：swing swim
+st 示例单词：stop test fast
+Unit4
+sh 示例单词：shell fish ship
+ch 示例单词：chick lunch
+tch 示例单词：watch catch 
+ph 示例单词：phone dolphin 
+wh 示例单词：whale white 
+Unit 5
+voiced th 示例单词：this that mother
+unvoiced th 示例单词：three teeth think 
+ck 示例单词：duck rocket 
+qu 示例单词：queen quilt 
+Unit 6
+ng 示例单词：king long 
+nk 示例单词：bank pink 
+nd 示例单词：wind hand 
+nt 示例单词：tent paint
+It 示例单词：belt adult 
+mp 示例单词：lamp camp 
+Unit 7
+sk 示例单词：skunk desk 
+sc 示例单词：scale school
+spr 示例单词：spray spring
+str 示例单词：string strong
+spl 示例单词：splash splint
+squ 示例单词：squid square
+Unit 8
+soft c 示例单词：rice city icecream
+sogt g 示例单词：giraffe orange giant
+voiced s 示例单词：rose jeans cheese
+
+Level 5 Letter Combinations
+Unit 1
+ar 示例单词：car farm park
+ir 示例单词：bird girl
+ur 示例单词：nurse purple
+er 示例单词：teacher sister
+or 示例单词：doctor tractor 
+Unit 2
+ou 示例单词：mouse house 
+ow 示例单词：cow brown
+oi 示例单词：coin soil
+oy 示例单词：toy boy 
+oo 示例单词：book foot
+u  示例单词：bush pull 
+Unit 3
+au 示例单词：sauce August
+aw 示例单词：prawn draw 
+all 示例单词：ball tall 
+wa 示例单词：water walk
+or 示例单词：horse fork
+oar 示例单词：roar board
+Unit 4
+are 示例单词：square share
+air 示例单词：chair hair
+ea 示例单词：bread head 
+ear 示例单词：bear pear 
+ear*示例单词：ear clear
+eer 示例单词：deer cheer
+Unit 5
+a 示例单词：acorn baby elevator
+e 示例单词：he she
+i 示例单词：tiger child
+o 示例单词：cold hotel
+u 示例单词：uniform music
+Unit 6 schwa
+a1示例单词：panda gorilla banana
+e1示例单词：chicken
+i1示例单词：pencil
+o1示例单词：lemon
+u1示例单词：surprise
+o**示例单词：monkey love son 
+Unit 7 silent letters
+kn 示例单词：knife knee
+wr 示例单词：write wrong 
+mb 示例单词：lamb comb
+e***示例单词：glove live
+rh 示例单词：rhino rhubarb
+st 示例单词：whistle castle 
+Unit 8
+ture 示例单词：picture nature
+sure 示例单词：treasure measure
+tion 示例单词：station competition
+sion 示例单词：television excursion
+ous 示例单词：famous dangerous
+ful 示例单词：beautiful helpful
