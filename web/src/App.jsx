@@ -2,18 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { VOCAB as PU2_VOCAB } from './data/pu2_vocab'
 import { PU3_VOCAB } from './data/pu3_vocab'
 import { PU1_VOCAB } from './data/pu1_vocab'
-import { PHONICS_VOCAB, PHONICS_LEVELS } from './data/phonics_vocab'
 import { recordGameResult, loadStats } from './pages/StatsPage'
-import PhonicsChopGame from './PhonicsChopGame'
-import PhonicsCombineGame from './PhonicsCombineGame'
-import PhonicsLearnView from './PhonicsLearnView'
 
-// PU1 + PU2 + PU3 + Phonics 合并
 const VOCAB = { ...PU1_VOCAB, ...PU2_VOCAB, ...PU3_VOCAB }
-const getAllWordsForVocab = (key) => (VOCAB[key] || PHONICS_VOCAB[key])?.words || []
-const getVocabData = (key) => VOCAB[key] || PHONICS_VOCAB[key] || {}
-// Phonics visible only on localhost / local dev
-const IS_DEV = ['localhost', '127.0.0.1', ''].includes(window.location.hostname.split(':')[0])
+const getAllWordsForVocab = (key) => VOCAB[key]?.words || []
+const getVocabData = (key) => VOCAB[key] || {}
 import StatsPage from './pages/StatsPage'
 import './App.css'
 
@@ -653,29 +646,6 @@ if (window.speechSynthesis) {
 
 // ─── 课程数据（可扩展 PU1/PU3）──────────────────────
 const COURSES = [
-  IS_DEV ? {
-    id: 'Phonics',
-    icon: '🔤',
-    title: 'Phonics',
-    subtitle: '44 Phonemes · 6 Levels',
-    color: '#f59e0b',
-    bg: '#fef3c7',
-    cover: null,
-    units: PHONICS_LEVELS.flatMap(l => l.units),
-    locked: false,
-    isPhonics: true,
-    levels: PHONICS_LEVELS,
-  } : {
-    id: 'Phonics',
-    icon: '🔤',
-    title: 'Phonics',
-    subtitle: 'Coming Soon',
-    color: '#94a3b8',
-    bg: '#f1f5f9',
-    cover: null,
-    units: [],
-    locked: true,
-  },
   {
     id: 'PU1',
     icon: '🌱',
@@ -769,57 +739,25 @@ export default function App() {
               ← Back to Courses
             </button>
           </div>
-          {unitView === 'flashcard' && activeUnit && (() => {
-            const isPhonicsUnit = activeUnit?.startsWith('phL')
-            if (isPhonicsUnit) {
-              return (
-                <PhonicsLearnView
-                  key={`learn-${activeUnit}`}
-                  unitKey={activeUnit}
-                  unitTitle={title}
-                  unitSubtitleZh={vocab?.subtitleZh}
-                  unitSubtitle={vocab?.subtitle}
-                  allWords={words}
-                  onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
-                  onBack={() => { setUnitView(null); setActiveUnit(null) }}
-                />
-              )
-            }
-            return (
-              <UnitFlashcardView
-                unitKey={activeUnit}
-                VOCAB={VOCAB}
-                progress={progress}
-                refresh={refresh}
-                startIdx={startWordIdx}
-              />
-            )
-          })()}
-          {(unitView === 'spelling' || unitView === 'random') && (() => {
-            const isPhonicsUnit = activeUnit && activeUnit.startsWith('phL')
-            if (isPhonicsUnit) return (
-              <PhonicsCombineGame
-                key={`combine-${activeUnit}`}
-                unitKey={activeUnit}
-                unitTitle={title}
-                unitSubtitleZh={vocab?.subtitleZh}
-                unitSubtitle={vocab?.subtitle}
-                allWords={words}
-                onComplete={() => { refresh(); setUnitView(null); setActiveUnit(null) }}
-                onBack={() => { setUnitView(null); setActiveUnit(null) }}
-              />
-            )
-            return (
-              <SpellingGame
-                key={`${unitView}-${activeUnit || 'all'}-${Date.now()}`}
-                unitKey={activeUnit || 'random'}
-                unitTitle={title}
-                allWords={words}
-                onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
-                onBack={() => { setUnitView(null); setActiveUnit(null) }}
-              />
-            )
-          })()}
+          {unitView === 'flashcard' && activeUnit && (
+            <UnitFlashcardView
+              unitKey={activeUnit}
+              VOCAB={VOCAB}
+              progress={progress}
+              refresh={refresh}
+              startIdx={startWordIdx}
+            />
+          )}
+          {(unitView === 'spelling' || unitView === 'random') && (
+            <SpellingGame
+              key={`${unitView}-${activeUnit || 'all'}-${Date.now()}`}
+              unitKey={activeUnit || 'random'}
+              unitTitle={title}
+              allWords={words}
+              onComplete={() => { refresh(); setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}
+              onBack={() => { setUnitView(null); setActiveUnit(null) }}
+            />
+          )}
         </div>
       </div>
     )
@@ -827,8 +765,6 @@ export default function App() {
 
   // ── 第二级：课程内（单元列表） ─────────────────
   if (activeCourse) {
-    const isPhonics = activeCourse.isPhonics
-
     return (
       <div className="app level-view" style={{ "--card-color": activeCourse.color, "--card-bg": activeCourse.bg }} onClick={onFirstClick}>
         <button className="back-btn" onClick={() => { setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}>
@@ -842,108 +778,45 @@ export default function App() {
           </div>
         </div>
 
-        {!isPhonics && (
-          <div className="random-btn-wrap">
-            <button className="btn btn-lg"
-              onClick={() => { setUnitView('random'); setActiveUnit(null) }}>
-              🎲 Random Challenge (10 words)
-            </button>
-          </div>
-        )}
+        <div className="random-btn-wrap">
+          <button className="btn btn-lg"
+            onClick={() => { setUnitView('random'); setActiveUnit(null) }}>
+            🎲 Random Challenge (10 words)
+          </button>
+        </div>
 
-        {isPhonics ? (
-          // ── Phonics：所有 Level + Unit 分组平铺 ──────────────
-          <>
-            {activeCourse.levels.map(level => {
-              const levelDone = level.units.filter(k => progress[k]?.completed).length
-              const allLevelDone = levelDone === level.units.length
-              return (
-                <div key={level.id} className="phonics-level-group">
-                  {/* Level 分组标题 */}
-                  <div className="phonics-level-header">
-                    <div className="phonics-level-left">
-                      <span className="phonics-level-badge">{level.label}</span>
-                      <span className="phonics-level-name">{level.title}</span>
-                      <span className="phonics-level-name-zh">{level.titleZh}</span>
-                    </div>
-                    <div className="phonics-level-right">
-                      <span className="phonics-level-progress">{levelDone}/{level.units.length}</span>
-                      {allLevelDone && <span className="unit-stars">{'★'.repeat(3)}</span>}
-                    </div>
-                  </div>
-                  {/* Level 内的单元网格 */}
-                  <div className="unit-grid">
-                    {level.units.map(key => {
-                      const unit = PHONICS_VOCAB[key]
-                      if (!unit) return null
-                      const prog = progress[key] || {}
-                      const done = prog.completed
-                      const stars = prog.bestScore ? Math.min(3, Math.ceil(prog.bestScore / 4)) : 0
-                      return (
-                        <div key={key} className={`unit-card ${done ? 'done' : ''}`}
-                          style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
-                          <div className="unit-key-row">
-                            <span className="unit-card-key">{key.replace('phL', 'L')}</span>
-                            {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
-                          </div>
-                          <div className="unit-title-row">
-                            <h3 className="unit-card-title">{unit.title}</h3>
-                            {unit.titleZh && <h4 className="unit-card-subtitle-zh">{unit.titleZh}</h4>}
-                          </div>
-                          <p className="unit-card-meta">{unit.words.length}词</p>
-                          <div className="unit-card-actions">
-                            <button className="unit-action-btn challenge" onClick={() => { setActiveUnit(key); setUnitView('spelling') }}>
-                              <span className="unit-action-icon">🎯</span>
-                              <span className="unit-action-label">Challenge</span>
-                            </button>
-                            <button className="unit-action-btn learn" onClick={() => { setActiveUnit(key); setUnitView('flashcard') }}>
-                              <span className="unit-action-icon">📖</span>
-                              <span className="unit-action-label">Learn</span>
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
+        <div className="unit-grid">
+          {activeCourse.units.map(key => {
+            const unit = VOCAB[key]
+            if (!unit) return null
+            const prog = progress[key] || {}
+            const done = prog.completed
+            const stars = prog.bestScore ? Math.min(3, Math.ceil(prog.bestScore / 4)) : 0
+            return (
+              <div key={key} className={`unit-card ${done ? 'done' : ''}`}
+                style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
+                <div className="unit-key-row">
+                  <span className="unit-card-key">{key.replace('pu3u', 'PU3U').replace('pu2u', 'PU2U').replace('pu1u', 'PU1U')}</span>
+                  {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
                 </div>
-              )
-            })}
-          </>
-        ) : (
-          // ── PU 课程：普通单元网格 ──────────────────────
-          <div className="unit-grid">
-            {activeCourse.units.map(key => {
-              const unit = VOCAB[key]
-              if (!unit) return null
-              const prog = progress[key] || {}
-              const done = prog.completed
-              const stars = prog.bestScore ? Math.min(3, Math.ceil(prog.bestScore / 4)) : 0
-              return (
-                <div key={key} className={`unit-card ${done ? 'done' : ''}`}
-                  style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
-                  <div className="unit-key-row">
-                    <span className="unit-card-key">{key.replace('pu3u', 'PU3U').replace('pu2u', 'PU2U').replace('pu1u', 'PU1U')}</span>
-                    {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
-                  </div>
-                  <div className="unit-title-row">
-                    <h3 className="unit-card-title">{unit.title}</h3>
-                  </div>
-                  <p className="unit-card-meta">{unit.words.length} words</p>
-                  <div className="unit-card-actions">
-                    <button className="unit-action-btn challenge" onClick={() => { setActiveUnit(key); setUnitView('spelling') }}>
-                      <span className="unit-action-icon">🎯</span>
-                      <span className="unit-action-label">Challenge</span>
-                    </button>
-                    <button className="unit-action-btn learn" onClick={() => { setActiveUnit(key); setUnitView('flashcard') }}>
-                      <span className="unit-action-icon">📖</span>
-                      <span className="unit-action-label">Learn</span>
-                    </button>
-                  </div>
+                <div className="unit-title-row">
+                  <h3 className="unit-card-title">{unit.title}</h3>
                 </div>
-              )
-            })}
-          </div>
-        )}
+                <p className="unit-card-meta">{unit.words.length} words</p>
+                <div className="unit-card-actions">
+                  <button className="unit-action-btn challenge" onClick={() => { setActiveUnit(key); setUnitView('spelling') }}>
+                    <span className="unit-action-icon">🎯</span>
+                    <span className="unit-action-label">Challenge</span>
+                  </button>
+                  <button className="unit-action-btn learn" onClick={() => { setActiveUnit(key); setUnitView('flashcard') }}>
+                    <span className="unit-action-icon">📖</span>
+                    <span className="unit-action-label">Learn</span>
+                  </button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     )
   }
