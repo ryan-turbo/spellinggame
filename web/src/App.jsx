@@ -3,19 +3,22 @@ import { VOCAB as PU2_VOCAB } from './data/pu2_vocab'
 import { PU3_VOCAB } from './data/pu3_vocab'
 import { PU1_VOCAB } from './data/pu1_vocab'
 import { recordGameResult, loadStats } from './pages/StatsPage'
+import StatsPage from './pages/StatsPage'
+import { Button } from './components/ui/button'
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from './components/ui/card'
+import { Badge } from './components/ui/badge'
+import { Progress } from './components/ui/progress'
+import { cn } from './lib/utils'
+import { ArrowLeft, Volume2, Lightbulb, Flag, ChevronRight, Search, BookOpen, Trophy, Target, Zap, Star } from 'lucide-react'
 
 const VOCAB = { ...PU1_VOCAB, ...PU2_VOCAB, ...PU3_VOCAB }
 const getAllWordsForVocab = (key) => VOCAB[key]?.words || []
 const getVocabData = (key) => VOCAB[key] || {}
-import StatsPage from './pages/StatsPage'
-import './App.css'
 
 // ─── 工具 ───────────────────────────────────────────────
 const speak = (text) => {
-  // 优先播放预录制的 mp3 音频（en-GB-RyanNeural）
   const audio = new Audio(`/audio/${encodeURIComponent(text)}.mp3`)
   audio.onerror = () => {
-    // mp3 不存在时降级到系统 TTS
     if (!window.speechSynthesis) return
     window.speechSynthesis.cancel()
     const u = new SpeechSynthesisUtterance(text)
@@ -38,22 +41,12 @@ let _audioCtxReady = false
 
 const getAudioCtx = () => {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)()
-  // 浏览器 autoplay 策略：需要用户交互后才能 resume
   if (_audioCtx.state === 'suspended') {
     _audioCtx.resume().then(() => { _audioCtxReady = true }).catch(() => {})
   } else {
     _audioCtxReady = true
   }
   return _audioCtx
-}
-
-// 初始化音频上下文（用户首次交互时调用）
-const initAudio = () => {
-  try {
-    const ctx = getAudioCtx()
-    if (ctx.state === 'suspended') ctx.resume()
-    _audioCtxReady = true
-  } catch {}
 }
 
 const playKeySound = (pitch = 1) => {
@@ -100,32 +93,19 @@ const playCorrectSound = () => {
   } catch {}
 }
 
-// ─── 音节分组建构（辅音边界切分 + 元音感知分配）─────────
-/**
- * 将单词按音节拆分成 [{letters, ipa}] 数组
- * 核心：先找 IPA 元音边界切分 IPA；再用"辅音字母组优先"策略切分字母
- */
+// ─── 音节分组建构 ────────────────────────────────
 const splitSyllables = (word, phonetic) => {
   if (!phonetic) return [{ letters: word, ipa: '' }]
 
-  // ── 多词组处理：按空格分割，递归调用 ───────────────────
   const wordParts = word.split(' ')
   if (wordParts.length > 1) {
-    // IPA 也按空格分割（如 /hæv ə ˈʃaʊə/ → ['hæv', 'ə', 'ˈʃaʊə']）
     const ipaParts = phonetic.replace(/[\[\]\/]/g, '').split(/\s+/)
     const results = []
-    
-    // 如果 IPA 部分多于单词部分，需要合并多余的 IPA
-    // 例如: watch a DVD → 3个词，但 IPA 有 5 部分
-    // 需要把 DVD 对应的 IPA 部分合并
     if (ipaParts.length > wordParts.length) {
       const mergedIpaParts = []
       let ipaIdx = 0
       for (let wIdx = 0; wIdx < wordParts.length; wIdx++) {
-        // 计算当前单词需要的 IPA 部分数量
-        // 简单启发式：最后一个单词获取所有剩余的 IPA 部分
         if (wIdx === wordParts.length - 1) {
-          // 最后一个单词：合并剩余所有 IPA
           mergedIpaParts.push(ipaParts.slice(ipaIdx).join(' '))
         } else {
           mergedIpaParts.push(ipaParts[ipaIdx] || '')
@@ -139,7 +119,6 @@ const splitSyllables = (word, phonetic) => {
         results.push(...syllables)
       }
     } else {
-      // 正常情况：IPA 部分数量等于或少于单词数量
       for (let i = 0; i < wordParts.length; i++) {
         const ipa = ipaParts[i] || ''
         const ipaWithSlashes = ipa ? '/' + ipa + '/' : ''
@@ -151,8 +130,6 @@ const splitSyllables = (word, phonetic) => {
   }
 
   const stripped = phonetic.replace(/[\[\]\/]/g, '')
-
-  // ── 元音列表（按长度降序）──────────────────────────────
   const VOWEL_PHONEMES = [
     'iː','eɪ','aɪ','ɔɪ','aʊ','ɪə','eə','ʊə',
     'ɑː','ɔː','uː','ɜː',
@@ -160,8 +137,7 @@ const splitSyllables = (word, phonetic) => {
     'a','i','o','u'
   ]
 
-  // ── 扫描 IPA，提取元音位置 ───────────────────────────
-  const vowelUnits = [] // [{ipa, charPos}]
+  const vowelUnits = []
   let pos = 0
   while (pos < stripped.length) {
     if (stripped[pos] === 'ˈ' || stripped[pos] === 'ˌ') { pos++; continue }
@@ -180,7 +156,6 @@ const splitSyllables = (word, phonetic) => {
   if (vowelUnits.length === 0) return [{ letters: word, ipa: '' }]
   if (vowelUnits.length === 1) return [{ letters: word, ipa: phonetic }]
 
-  // ── 第一步：按元音边界切分 IPA ──────────────────────────
   const syllableIpas = []
   let prevPos = 0
   for (let i = 1; i < vowelUnits.length; i++) {
@@ -188,7 +163,6 @@ const splitSyllables = (word, phonetic) => {
     const gapEnd = vowelUnits[i].charPos
     const gap = stripped.slice(gapStart, gapEnd)
     const numCons = gap.replace(/[ˈˌ]/g, '').length
-
     if (numCons === 0) {
       syllableIpas.push(stripped.slice(prevPos, gapStart + 1))
       prevPos = gapStart + 1
@@ -199,15 +173,12 @@ const splitSyllables = (word, phonetic) => {
       syllableIpas.push(stripped.slice(prevPos, gapStart + 1))
       prevPos = gapStart + 1
     } else {
-      // 3+ 个辅音：第一辅音归前音节，其余归后音节（onset maximization）
       syllableIpas.push(stripped.slice(prevPos, gapStart + 1))
       prevPos = gapStart + 1
     }
   }
   syllableIpas.push(stripped.slice(prevPos))
 
-  // ── 后处理：若首个音节 IPA 无元音音素（如 "wedn|esday" 中的 "wedn"）
-  // 则合并到下一音节（确保首音节有元音支撑字母分配）
   const vowelPhonemes = ['iː','eɪ','aɪ','ɔɪ','aʊ','ɪə','eə','ʊə','ɑː','ɔː','uː','ɜː','ɪ','e','æ','ʌ','ʊ','ə','ɒ','ɔ','a','i','o','u']
   const hasVowel = (ipa) => vowelPhonemes.some(v => ipa.includes(v))
   if (syllableIpas.length >= 2 && !hasVowel(syllableIpas[0])) {
@@ -215,17 +186,11 @@ const splitSyllables = (word, phonetic) => {
     syllableIpas.shift()
   }
 
-  // ── 第二步：辅音字母组边界切分字母 ─────────────────────
-  // IPA 辅音映射表：字母/digraph → IPA（字母→IPA，用于从字母串中匹配 IPA）
-  // 注意：同一 IPA 可能对应多个字母组合（如 k=c/k/ck/ch）
   const CONSONANT_MAP = [
-    // 双字母 digraph
     { letters: 'sh', ipa: 'ʃ' }, { letters: 'ch', ipa: 'tʃ' }, { letters: 'th', ipa: 'θ' },
     { letters: 'ph', ipa: 'f' }, { letters: 'wh', ipa: 'w' }, { letters: 'wr', ipa: 'r' },
     { letters: 'kn', ipa: 'n' }, { letters: 'ng', ipa: 'ŋ' }, { letters: 'ck', ipa: 'k' },
-    { letters: 'sc', ipa: 's' }, { letters: 'gh', ipa: '' }, // gh 不发音（night）或发 f（laugh）
-    { letters: 'mb', ipa: 'm' }, // mb 尾 m（climb）
-    // 单辅音
+    { letters: 'sc', ipa: 's' }, { letters: 'gh', ipa: '' }, { letters: 'mb', ipa: 'm' },
     { letters: 'b', ipa: 'b' }, { letters: 'c', ipa: 'k' }, { letters: 'd', ipa: 'd' },
     { letters: 'f', ipa: 'f' }, { letters: 'g', ipa: 'ɡ' }, { letters: 'h', ipa: 'h' },
     { letters: 'j', ipa: 'dʒ' }, { letters: 'k', ipa: 'k' }, { letters: 'l', ipa: 'l' },
@@ -235,34 +200,17 @@ const splitSyllables = (word, phonetic) => {
     { letters: 'x', ipa: 'ks' }, { letters: 'y', ipa: 'j' }, { letters: 'z', ipa: 'z' },
   ]
 
-  /**
-   * 在字母串 l[pos] 位置，尝试匹配一个 IPA 音素
-   * @returns {{consumedIpa: number, consumedLetter: number}}
-   */
   function matchOne(letters, pos, ipa) {
     if (pos >= letters.length || ipa.length === 0) return { consumedIpa: 0, consumedLetter: 0 }
-
-    // 1. 辅音 digraph + 单辅音（优先最长匹配）
     for (const { letters: dl, ipa: di } of CONSONANT_MAP) {
       if (letters.slice(pos, pos + dl.length).toLowerCase() === dl) {
-        if (di === '') {
-          // 不发辅音：跳过字母，不消耗 IPA（gh）
-          return { consumedIpa: 0, consumedLetter: dl.length }
-        }
-        if (ipa.startsWith(di)) {
-          return { consumedIpa: di.length, consumedLetter: dl.length }
-        }
-        // IPA 以辅音开头但 digraph 不匹配？按单辅音处理（末尾字母）
-        // 例：IPA "t" vs 字母 "ck" → ck 不发 k 音，按 c=IPA k 不匹配
+        if (di === '') return { consumedIpa: 0, consumedLetter: dl.length }
+        if (ipa.startsWith(di)) return { consumedIpa: di.length, consumedLetter: dl.length }
       }
     }
-
-    // 2. 元音字母 → IPA
     const lc = letters[pos]
     if ('aeiouy'.includes(lc)) {
-      // 按"字母序列 vs IPA序列"贪心匹配
       const vowelCombos = [
-        // 双字母元音
         { letters: 'ou', ipa: ['aʊ', 'əʊ', 'ʌ'] },
         { letters: 'ow', ipa: ['aʊ', 'əʊ'] },
         { letters: 'oo', ipa: ['uː', 'ʊ'] },
@@ -273,7 +221,6 @@ const splitSyllables = (word, phonetic) => {
         { letters: 'ie', ipa: ['aɪ', 'iː'] },
         { letters: 'au', ipa: ['ɔː'] }, { letters: 'aw', ipa: ['ɔː'] },
         { letters: 'ey', ipa: ['eɪ'] }, { letters: 'ei', ipa: ['eɪ'] },
-        // r 组合
         { letters: 'ar', ipa: ['ɑː', 'ɒ'] },
         { letters: 'or', ipa: ['ɔː', 'ɜː'] },
         { letters: 'er', ipa: ['ɜː'] },
@@ -281,42 +228,31 @@ const splitSyllables = (word, phonetic) => {
         { letters: 'ear', ipa: ['ɪə', 'ɜː'] }, { letters: 'air', ipa: ['eə'] },
         { letters: 'ere', ipa: ['ɪə', 'eə'] }, { letters: 'are', ipa: ['eə'] },
         { letters: 'oor', ipa: ['ɔː'] }, { letters: 'our', ipa: ['ɔː', 'ʊə'] },
-        // 单元音（最末）
         { letters: 'a', ipa: ['ɑː', 'æ', 'ɒ', 'eɪ'] },
-        { letters: 'e', ipa: ['e'] }, // 不含 eɪ！避免 ea 匹配 eɪ
+        { letters: 'e', ipa: ['e'] },
         { letters: 'i', ipa: ['ɪ', 'aɪ', 'iː'] },
         { letters: 'o', ipa: ['ɒ', 'əʊ', 'ʌ'] },
         { letters: 'u', ipa: ['ʌ', 'ʊ', 'uː', 'ə'] },
-        { letters: 'y', ipa: ['ɪ', 'aɪ'] }, // y as vowel
+        { letters: 'y', ipa: ['ɪ', 'aɪ'] },
       ]
       for (const { letters: vl, ipa: va } of vowelCombos) {
         if (letters.slice(pos, pos + vl.length).toLowerCase() === vl) {
           for (const ipaSeq of va) {
-            if (ipa.startsWith(ipaSeq)) {
-              return { consumedIpa: ipaSeq.length, consumedLetter: vl.length }
-            }
+            if (ipa.startsWith(ipaSeq)) return { consumedIpa: ipaSeq.length, consumedLetter: vl.length }
           }
         }
       }
     }
-
-    // 3. 无法匹配：字母和 IPA 各消耗 1 字符（对齐错位）
-    // 例如 Wednesday: 字母 'd' 无法匹配 IPA 'n'，各跳过 1 字符继续
     return { consumedIpa: 1, consumedLetter: 1 }
   }
 
-  /**
-   * 将字母串按 IPA 片段分配
-   */
   function allocateLetters(letters, syllableIpas) {
     const result = []
     let lPos = 0
-
     for (let si = 0; si < syllableIpas.length; si++) {
       const ipa = syllableIpas[si].replace(/[ˈˌ]/g, '')
       let syllLetters = ''
       let iPos = 0
-
       while (iPos < ipa.length && lPos < letters.length) {
         const { consumedIpa, consumedLetter } = matchOne(letters, lPos, ipa.slice(iPos))
         if (consumedLetter > 0) {
@@ -325,27 +261,19 @@ const splitSyllables = (word, phonetic) => {
         }
         iPos += consumedIpa
       }
-
-      // 仅最后一个音节：吞掉所有剩余字母
       if (si === syllableIpas.length - 1 && lPos < letters.length) {
         syllLetters += letters.slice(lPos)
         lPos = letters.length
       }
-
       result.push(syllLetters)
     }
-
     return result
   }
 
   const wordLower = word.replace(/ /g, '').toLowerCase()
   let letterSyllables = allocateLetters(wordLower, syllableIpas)
-
-  // 检查分配是否合理：如果某音节字母数 > IPA字符数的2倍，可能匹配错误
   const ipaLengths = syllableIpas.map(ip => ip.replace(/[ˈˌ]/g, '').length)
   const needsFallback = letterSyllables.some((s, i) => s.length > ipaLengths[i] * 2 + 1)
-
-  // 兜底：若规则分配总量不对，或分配不合理，用比例法
   const totalAllocated = letterSyllables.join('').length
   if (totalAllocated !== wordLower.length || needsFallback) {
     const totalIpa = ipaLengths.reduce((a, b) => a + b, 0)
@@ -362,13 +290,11 @@ const splitSyllables = (word, phonetic) => {
       }
     }
   }
-
   return syllableIpas.map((ipa, i) => ({
     letters: letterSyllables[i] || '',
     ipa: '/' + ipa + '/'
   }))
 }
-
 
 // ─── 通用工具 ──────────────────────────────────────────
 const shuffle = arr => [...arr].sort(() => Math.random() - 0.5)
@@ -380,21 +306,23 @@ const saveProgress = p => localStorage.setItem('pu2_progress', JSON.stringify(p)
 // ─── 闪卡组件 ──────────────────────────────────────────
 function FlashCard({ word, unitTitle, index, total, onSpeak }) {
   const imgSrc = word.image ? (word.image.startsWith('/') ? word.image : '/' + word.image) : `/images/${word.word}.png`
-
   return (
-    <div className="flashcard-scene">
-      <div className="flashcard-meta">
-        <span className="flashcard-unit">{unitTitle}</span>
-        <span className="flashcard-counter">{index + 1} / {total}</span>
+    <div className="flex flex-col items-center gap-3.5 animate-fade-in">
+      <div className="w-full flex justify-between text-sm">
+        <span className="font-semibold text-primary">{unitTitle}</span>
+        <span className="text-text-light">{index + 1} / {total}</span>
       </div>
-      <div className="flashcard-simple">
-        <img src={imgSrc} alt={word.word} className="flashcard-img"
+      <Card className="flex flex-col items-center p-7 w-full max-w-[500px]">
+        <img src={imgSrc} alt={word.word}
+          className="max-w-[480px] max-h-[320px] w-auto h-auto object-contain mb-4 bg-white rounded-[10px] p-4"
           onError={e => { e.target.style.display = 'none' }} />
-        <span className="flashcard-word">{word.word}</span>
-        <span className="flashcard-phonetic">{word.phonetic}</span>
-        <div className="flashcard-definition">{word.definition}</div>
-        <button className="icon-btn" onClick={() => onSpeak(word.word)}>🔊</button>
-      </div>
+        <span className="text-[30px] font-bold tracking-[-0.3px] text-center mt-4">{word.word}</span>
+        <span className="text-[17px] text-primary text-center mt-1.5">{word.phonetic}</span>
+        <div className="text-lg leading-relaxed text-center my-3.5 text-text">{word.definition}</div>
+        <Button variant="primaryLight" size="icon" onClick={() => onSpeak(word.word)}>
+          <Volume2 size={20} />
+        </Button>
+      </Card>
     </div>
   )
 }
@@ -402,8 +330,6 @@ function FlashCard({ word, unitTitle, index, total, onSpeak }) {
 // ─── 字母输入框组件（音节分组版）──────────────────────
 function LetterInput({ word, phonetic, onDone, disabled, vals, setVals }) {
   const syllables = splitSyllables(word, phonetic)
-
-  // 展平为各字母的元数据
   let globalIdx = 0
   const flat = []
   syllables.forEach(syl => {
@@ -412,16 +338,13 @@ function LetterInput({ word, phonetic, onDone, disabled, vals, setVals }) {
     }
   })
   const total = flat.length
-
   const inputsRef = useRef([])
 
-  // 每次换题时聚焦
   useEffect(() => {
     const t = setTimeout(() => inputsRef.current[0]?.focus(), 80)
     return () => clearTimeout(t)
   }, [word])
 
-  // 禁用解除后自动聚焦
   useEffect(() => {
     if (!disabled) {
       const t = setTimeout(() => inputsRef.current[0]?.focus(), 60)
@@ -444,7 +367,6 @@ function LetterInput({ word, phonetic, onDone, disabled, vals, setVals }) {
     if (e.key === 'Backspace' && !vals[i] && i > 0) inputsRef.current[i - 1]?.focus()
   }
 
-  // 计算每个音节组含多少个字母格
   let letterCount = 0
   const sylBoxes = syllables.map(syl => {
     const count = syl.letters.length
@@ -469,7 +391,7 @@ function LetterInput({ word, phonetic, onDone, disabled, vals, setVals }) {
         />
       )
     }
-    return { boxes, ipa: syl.ipa, sylIdx: syllables.indexOf(syl) }
+    return { boxes, ipa: syl.ipa }
   })
 
   return (
@@ -478,9 +400,7 @@ function LetterInput({ word, phonetic, onDone, disabled, vals, setVals }) {
         <div key={si} className="syllable-group">
           <span className="syllable-ipa">{syl.ipa}</span>
           <div className="syllable-boxes">
-            {syllables[si] && sylBoxes[si]
-              ? sylBoxes[si].boxes
-              : null}
+            {sylBoxes[si]?.boxes}
           </div>
         </div>
       ))}
@@ -488,8 +408,7 @@ function LetterInput({ word, phonetic, onDone, disabled, vals, setVals }) {
   )
 }
 
-
-// ─── 闯关游戏（单阶段）───────────────────────────────
+// ─── 闯关游戏 ───────────────────────────────
 function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   const [queue] = useState(() => shuffle(allWords).slice(0, 10))
   const [current, setCurrent] = useState(0)
@@ -497,9 +416,9 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   const [feedback, setFeedback] = useState(null)
   const [finished, setFinished] = useState(false)
   const [hintLevel, setHintLevel] = useState(0)
-  const [wordResults, setWordResults] = useState([]) // [{word, correct}]
-  const [submitted, setSubmitted] = useState(false) // 已提交过正确答案，等待 Enter 下一题
-  const [inputVals, setInputVals] = useState([]) // LetterInput 的当前输入
+  const [wordResults, setWordResults] = useState([])
+  const [submitted, setSubmitted] = useState(false)
+  const [inputVals, setInputVals] = useState([])
   const w = queue[current]
 
   useEffect(() => {
@@ -507,29 +426,24 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
     return () => clearTimeout(t)
   }, [current, w.word])
 
-  // 切题时重置状态
   useEffect(() => {
     setFeedback(null)
     setSubmitted(false)
     setInputVals(Array(w.word.length).fill(''))
   }, [current, w.word])
 
-  // 回车键：直接检查当前输入是否正确
   const handleEnter = useCallback((e) => {
     if (e.key === 'Enter') {
       const typed = inputVals.join('')
       const expected = w.word.replace(/ /g, '')
-      // 输入完整且正确 → 下一题
       if (typed.length === expected.length && typed.toLowerCase() === expected.toLowerCase()) {
         if (!submitted) {
-          // 首次答对：计分
           setFeedback('correct')
           setScore(s => s + 1)
           setWordResults(r => [...r, { word: w.word, correct: true }])
           setSubmitted(true)
           playCorrectSound()
         }
-        // 已答对过 → 切题
         setTimeout(() => {
           if (current + 1 >= queue.length) setFinished(true)
           else { setCurrent(c => c + 1); setHintLevel(0); setInputVals([]) }
@@ -573,22 +487,20 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
     const prev = prog[unitKey] || { bestScore: 0, completed: false }
     prog[unitKey] = { bestScore: Math.max(prev.bestScore, score), completed: true }
     saveProgress(prog)
-    // 记录详细统计（用于图表）
     recordGameResult({ unitKey, score, total: queue.length, wordResults })
   }, [finished])
 
-  // ── 结束页 ──
   if (finished) {
     const pct = Math.round((score / queue.length) * 100)
     return (
-      <div className="result-screen">
-        <div className="result-card">
-          <h2 className="result-title">🎉 Round Complete!</h2>
-          <div className="result-score">{score} / {queue.length}</div>
-          <div className="result-bar"><div className="result-bar-fill" style={{ width: pct + '%' }} /></div>
-          <p className="result-pct">{pct}% correct</p>
-          <button className="btn btn-primary" onClick={onComplete}>Back to Menu</button>
-        </div>
+      <div className="flex justify-center items-center min-h-[60vh] animate-scale-in">
+        <Card className="p-11 text-center max-w-[380px] w-full shadow-[0_0_0_1px_var(--color-border),var(--shadow-lg)] rounded-[18px]">
+          <h2 className="text-[30px] font-bold mb-6">🎉 Round Complete!</h2>
+          <div className="text-[64px] font-bold text-primary leading-none tracking-[-2px]">{score} / {queue.length}</div>
+          <Progress value={score} max={queue.length} className="my-6 h-[10px]" indicatorClassName="bg-accent" />
+          <p className="text-[15px] text-text-soft mb-7">{pct}% correct</p>
+          <Button onClick={onComplete}>Back to Menu</Button>
+        </Card>
       </div>
     )
   }
@@ -598,317 +510,48 @@ function SpellingGame({ unitKey, unitTitle, allWords, onComplete, onBack }) {
   const imgSrc = w.image ? (w.image.startsWith('/') ? w.image : '/' + w.image) : `/images/${w.word}.png`
 
   return (
-    <div className="spelling-scene">
-      <div className="spelling-header">
-        <button className="icon-btn back-btn" onClick={onBack}>← Back</button>
-        <span className="spelling-title">{unitTitle}</span>
-        <span className="spelling-score">🏆 {score} pts</span>
-      </div>
-      <div className="spelling-progress-bar">
-        <div className="spelling-progress-fill" style={{ width: `${(current / queue.length) * 100}%` }} />
+    <div className="flex flex-col items-center gap-3.5 animate-fade-in">
+      <div className="w-full flex items-center gap-3.5">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft size={16} /> Back
+        </Button>
+        <span className="text-[15px] font-semibold flex-1">{unitTitle}</span>
+        <span className="text-base font-bold text-accent">🏆 {score} pts</span>
       </div>
 
-      <div className={`phase-tag ${feedback === 'correct' ? 'phase-correct' : ''} ${feedback === 'wrong' ? 'phase-wrong' : ''}`}>
+      <Progress value={current} max={queue.length} />
+
+      <div className={cn("phase-tag", feedback === 'correct' && 'phase-correct', feedback === 'wrong' && 'phase-wrong')}>
         {feedback === 'correct' ? '✨ Correct! Press Enter to continue' : feedback === 'wrong' ? 'Try Again' : `Q${current + 1} / ${queue.length}`}
       </div>
 
-      {/* 卡片区：超大图 + 释义直接显示 */}
-      <div className="spell-card">
-        <img src={imgSrc} alt={w.word} className="spell-card-img"
+      <Card className="w-full max-w-[480px] flex flex-col items-center p-7 gap-3">
+        <img src={imgSrc} alt={w.word}
+          className="max-w-[200px] max-h-[200px] w-auto h-auto object-contain mb-1.5 bg-white rounded-[10px] p-3"
           onError={e => { e.target.style.display = 'none' }} />
-        <div className="spell-def">{w.definition}</div>
-        <div className="spell-phonetic">{w.phonetic}</div>
-      </div>
+        <div className="text-base leading-relaxed text-center max-w-[440px] text-text">{w.definition}</div>
+        <div className="text-base text-primary">{w.phonetic}</div>
+      </Card>
 
-      <button className="btn btn-speak spell-audio-btn" onClick={() => speak(w.word)}>
-        🔊 Listen Again
-      </button>
+      <Button variant="primaryLight" onClick={() => speak(w.word)}>
+        <Volume2 size={16} /> Listen Again
+      </Button>
 
       <LetterInput word={w.word} phonetic={w.phonetic} onDone={handleDone} disabled={feedback === 'correct'} vals={inputVals} setVals={setInputVals} />
 
-      <div className="spell-actions">
-        <button className="btn btn-hint" onClick={() => setHintLevel(h => Math.min(h + 1, 2))} disabled={hintLevel === 2}>
-          💡 Hint {hintLevel + 1}/2
-        </button>
-        <button className="btn btn-giveup" onClick={giveUp}>Give Up</button>
+      <div className="flex gap-2.5">
+        <Button variant="coral" onClick={() => setHintLevel(h => Math.min(h + 1, 2))} disabled={hintLevel === 2}>
+          <Lightbulb size={16} /> Hint {hintLevel + 1}/2
+        </Button>
+        <Button variant="outline" onClick={giveUp}>
+          <Flag size={16} /> Give Up
+        </Button>
       </div>
-      {hintText && <div className="spell-hint">{hintText}</div>}
+      {hintText && <div className="text-base text-coral font-semibold text-center">{hintText}</div>}
     </div>
   )
 }
 
-// ─── 主 App ─────────────────────────────────────────────
-// 确保语音列表加载完毕
-if (window.speechSynthesis) {
-  window.speechSynthesis.getVoices()
-  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices()
-}
-
-// ─── 课程数据（可扩展 PU1/PU3）──────────────────────
-const COURSES = [
-  {
-    id: 'PU1',
-    icon: '🌱',
-    title: 'Hello',
-    subtitle: '183 Words · 10 Units',
-    color: '#22c55e',
-    bg: '#bbf7d0',
-    cover: null,
-    units: ['pu1u0','pu1u1','pu1u2','pu1u3','pu1u4','pu1u5','pu1u6','pu1u7','pu1u8','pu1u9'],
-    locked: false,
-  },
-  {
-    id: 'PU2',
-    icon: '📚',
-    title: 'Meet the Family',
-    subtitle: '168 Words · 9 Units',
-    color: '#3b82f6',
-    bg: '#dbeafe',
-    cover: null,
-    units: ['pu2u1','pu2u2','pu2u3','pu2u4','pu2u5','pu2u6','pu2u7','pu2u8','pu2u9'],
-    locked: false,
-  },
-  {
-    id: 'PU3',
-    icon: '🚀',
-    title: 'Welcome to Diversicus',
-    subtitle: '143 Words · 9 Units',
-    color: '#8b5cf6',
-    bg: '#ede9fe',
-    cover: null,
-    units: ['pu3u1','pu3u2','pu3u3','pu3u4','pu3u5','pu3u6','pu3u7','pu3u8','pu3u9'],
-    locked: false,
-  },
-]
-
-export default function App() {
-  const [homeView, setHomeView] = useState('home') // 'home' | 'browse'
-  const [activeCourse, setActiveCourse] = useState(null) // null | COURSES item
-  const [activeUnit, setActiveUnit] = useState(null)      // 'u1'..'u9'
-  const [unitView, setUnitView] = useState(null)          // null|'flashcard'|'spelling'|'random'
-  const [startWordIdx, setStartWordIdx] = useState(0)      // BrowseAll 点击单词时的起始索引
-  const [showStats, setShowStats] = useState(false)        // 统计页面
-  const [progress, setProgress] = useState(loadProgress)
-  const refresh = () => setProgress(loadProgress())
-
-  // 首次用户交互时初始化音频上下文（绕过浏览器 autoplay 限制）
-  const audioInitedRef = useRef(false)
-  const initOnInteraction = useCallback(() => {
-    if (!audioInitedRef.current) {
-      audioInitedRef.current = true
-      const ctx = getAudioCtx()
-      if (ctx.state === 'suspended') ctx.resume()
-      _audioCtxReady = true
-    }
-  }, [])
-
-  // ── 全局首次点击初始化音频 ──
-  const onFirstClick = useCallback(() => initOnInteraction(), [initOnInteraction])
-
-  // ── 统计页面 ─────────────────────────────────────
-  if (showStats) {
-    return (
-      <div className="app" onClick={onFirstClick}>
-        <StatsPage onBack={() => setShowStats(false)} />
-      </div>
-    )
-  }
-
-  // ── 第三级：闯关 / 闪卡 / 随机闯关 ─────────────
-  if (activeCourse && unitView) {
-    const vocab = activeUnit ? getVocabData(activeUnit) : null
-    const words = unitView === 'random'
-      ? (() => {
-          const all = activeCourse.units.flatMap(k => VOCAB[k]?.words || [])
-          const arr = [...all]
-          for (let i = arr.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [arr[i], arr[j]] = [arr[j], arr[i]]
-          }
-          return arr.slice(0, 10)
-        })()
-      : (activeUnit ? getVocabData(activeUnit)?.words || [] : [])
-    const title = unitView === 'random' ? `Random Challenge (10 words)`
-      : unitView === 'flashcard' ? getVocabData(activeUnit)?.title
-      : getVocabData(activeUnit)?.title
-    return (
-      <div className="app" onClick={onFirstClick}>
-        <div className="embedded-view">
-          <div className="embedded-header">
-            <button className="icon-btn" onClick={() => { setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}>
-              ← Back to Courses
-            </button>
-          </div>
-          {unitView === 'flashcard' && activeUnit && (
-            <UnitFlashcardView
-              unitKey={activeUnit}
-              VOCAB={VOCAB}
-              progress={progress}
-              refresh={refresh}
-              startIdx={startWordIdx}
-              onBack={() => { setUnitView(null); setActiveUnit(null) }}
-            />
-          )}
-          {(unitView === 'spelling' || unitView === 'random') && (
-            <SpellingGame
-              key={`${unitView}-${activeUnit || 'all'}-${Date.now()}`}
-              unitKey={activeUnit || 'random'}
-              unitTitle={title}
-              allWords={words}
-              onComplete={() => { refresh(); setUnitView(null); setActiveUnit(null) }}
-              onBack={() => { setUnitView(null); setActiveUnit(null) }}
-            />
-          )}
-        </div>
-      </div>
-    )
-  }
-
-  // ── 第二级：课程内（单元列表） ─────────────────
-  if (activeCourse) {
-    return (
-      <div className="app level-view" style={{ "--card-color": activeCourse.color, "--card-bg": activeCourse.bg }} onClick={onFirstClick}>
-        <button className="back-btn" onClick={() => { setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}>
-          ← Back to Courses
-        </button>
-        <div className="level-banner">
-          <span className="level-icon">{activeCourse.icon}</span>
-          <div>
-            <h1 className="level-title">{activeCourse.id} · {activeCourse.title}</h1>
-            <p className="level-subtitle">{activeCourse.subtitle}</p>
-          </div>
-        </div>
-
-        <div className="random-btn-wrap">
-          <button className="btn btn-lg"
-            onClick={() => { setUnitView('random'); setActiveUnit(null) }}>
-            🎲 Random Challenge (10 words)
-          </button>
-        </div>
-
-        <div className="unit-grid">
-          {activeCourse.units.map(key => {
-            const unit = VOCAB[key]
-            if (!unit) return null
-            const prog = progress[key] || {}
-            const done = prog.completed
-            const stars = prog.bestScore ? Math.min(3, Math.ceil(prog.bestScore / 4)) : 0
-            return (
-              <div key={key} className={`unit-card ${done ? 'done' : ''}`}
-                style={{ '--card-color': activeCourse.color, 'display': 'flex', 'flexDirection': 'column', 'gap': '8px' }}>
-                <div className="unit-key-row">
-                  <span className="unit-card-key">{key.replace('pu3u', 'PU3U').replace('pu2u', 'PU2U').replace('pu1u', 'PU1U')}</span>
-                  {done && <span className="unit-stars">{'★'.repeat(stars)}</span>}
-                </div>
-                <div className="unit-title-row">
-                  <h3 className="unit-card-title">{unit.title}</h3>
-                </div>
-                <p className="unit-card-meta">{unit.words.length} words</p>
-                <div className="unit-card-actions">
-                  <button className="unit-action-btn challenge" onClick={() => { setActiveUnit(key); setUnitView('spelling') }}>
-                    <span className="unit-action-icon">🎯</span>
-                    <span className="unit-action-label">Challenge</span>
-                  </button>
-                  <button className="unit-action-btn learn" onClick={() => { setActiveUnit(key); setUnitView('flashcard') }}>
-                    <span className="unit-action-icon">📖</span>
-                    <span className="unit-action-label">Learn</span>
-                  </button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-    )
-  }
-
-  // ── 首页（课程卡片网格） ──────────────────────────
-  return (
-    <div className="app home-view" onClick={onFirstClick}>
-      <header className="app-header">
-        <div className="app-header-row">
-          <div>
-            <h1>🎯 Spelling Academy</h1>
-            <p className="app-subtitle">Master English Vocabulary — One Level at a Time</p>
-          </div>
-        </div>
-      </header>
-
-      {/* 导航 tabs：My Progress | Courses | Browse All Words */}
-      <div className="home-nav-tabs">
-        <button className={`home-nav-tab ${homeView === 'home' ? 'active' : ''}`} onClick={() => setHomeView('home')}>📖 Courses</button>
-        <button className={`home-nav-tab ${homeView === 'browse' ? 'active' : ''}`} onClick={() => setHomeView('browse')}>🔍 Browse All</button>
-        <button className="home-nav-tab" onClick={() => setShowStats(true)}>🏆 My Progress</button>
-      </div>
-
-      {homeView === 'browse' ? (
-        <BrowseAllView
-          VOCAB={VOCAB}
-          PU1_VOCAB={PU1_VOCAB}
-          PU2_VOCAB={PU2_VOCAB}
-          PU3_VOCAB={PU3_VOCAB}
-          progress={progress}
-          onBack={() => setHomeView('home')}
-          onFlashcard={(unitKey, wordIdx = 0) => { 
-            let course = 'PU3'
-            if (unitKey.startsWith('pu1u')) course = 'PU1'
-            else if (unitKey.startsWith('pu2u')) course = 'PU2'
-            setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course)); setUnitView('flashcard'); setStartWordIdx(wordIdx)
-          }}
-          onChallenge={(unitKey) => { 
-            let course = 'PU3'
-            if (unitKey.startsWith('pu1u')) course = 'PU1'
-            else if (unitKey.startsWith('pu2u')) course = 'PU2'
-            setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course))
-          }}
-        />
-      ) : (
-        <>
-        <div className="course-grid">
-          {COURSES.map(course => (
-            <div
-              key={course.id}
-              className={`course-card ${course.locked ? 'locked' : ''}`}
-              style={{ '--card-color': course.color, '--card-bg': course.bg }}
-              onClick={() => !course.locked && setActiveCourse(course)}
-            >
-              <div className="course-card-header">
-                <span className="course-icon">{course.icon}</span>
-                <span className="course-id">{course.id}</span>
-                {course.locked && <span className="course-lock">🔒</span>}
-              </div>
-              <h2 className="course-title">{course.title}</h2>
-              <p className="course-subtitle">{course.subtitle}</p>
-              {(course.id === 'PU1' || course.id === 'PU2') && <br/>}
-              {!course.locked && (
-                <div className="course-units-preview">
-                  {course.units.slice(0,3).map(u => (
-                    <span key={u} className="unit-chip">{u.replace('pu1u', 'PU1U').replace('pu2u', 'PU2U').replace('pu3u', 'PU3U')}</span>
-                  ))}
-                  {course.units.length > 3 && <span className="unit-chip muted">+{course.units.length-3} more</span>}
-                </div>
-              )}
-              {course.locked ? (
-                <span className="course-btn locked">Coming Soon</span>
-              ) : (
-                <span className="course-btn">Start Learning →</span>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Banner */}
-        <img src="/images/banner.gif" alt="" className="home-banner" />
-        </>
-      )}
-
-      {/* 联系方式 */}
-      <div className="home-contact-info">
-        bug feedback/班级群，请加微信：sugarbomb2017
-      </div>
-    </div>
-  )
-}
 // ─── 辅助：单元闪卡浏览 ─────────────────────────────
 function UnitFlashcardView({ unitKey, VOCAB, progress, refresh, startIdx = 0, onBack }) {
   const unit = VOCAB[unitKey]
@@ -930,17 +573,23 @@ function UnitFlashcardView({ unitKey, VOCAB, progress, refresh, startIdx = 0, on
   }
   if (!words.length) return null
   return (
-    <div className="app flashcard-standalone">
+    <div className="animate-fade-in">
       {onBack && (
-        <button className="back-btn" onClick={onBack} style={{ marginBottom: '12px' }}>← Back to Unit List</button>
+        <Button variant="ghost" size="sm" onClick={onBack} className="mb-3">
+          <ArrowLeft size={16} /> Back to Unit List
+        </Button>
       )}
       <FlashCard word={words[idx]} unitTitle={words[idx].unitTitle} index={idx} total={words.length} onSpeak={speak} />
-      <div className="flashcard-controls">
-        <button className="btn btn-secondary" onClick={() => setIdx(i => Math.max(0, i - 1))}>← Prev</button>
-        <button className={`btn ${mastered.includes(words[idx].word) ? 'btn-gold' : 'btn-primary'}`} onClick={toggleM}>
+      <div className="flex gap-2.5 justify-center mt-6">
+        <Button variant="secondary" onClick={() => setIdx(i => Math.max(0, i - 1))}>
+          ← Prev
+        </Button>
+        <Button variant={mastered.includes(words[idx].word) ? "gold" : "default"} onClick={toggleM}>
           {mastered.includes(words[idx].word) ? '✓ Mastered' : 'Mark Mastered'}
-        </button>
-        <button className="btn btn-secondary" onClick={() => setIdx(i => Math.min(words.length - 1, i + 1))}>Next →</button>
+        </Button>
+        <Button variant="secondary" onClick={() => setIdx(i => Math.min(words.length - 1, i + 1))}>
+          Next →
+        </Button>
       </div>
     </div>
   )
@@ -948,23 +597,20 @@ function UnitFlashcardView({ unitKey, VOCAB, progress, refresh, startIdx = 0, on
 
 // ─── 辅助：浏览全部词库 ────────────────────────────
 function BrowseAllView({ VOCAB, PU1_VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBack, onFlashcard, onChallenge }) {
-  const [courseFilter, setCourseFilter] = useState('pu1') // 'pu1' | 'pu2' | 'pu3'
+  const [courseFilter, setCourseFilter] = useState('pu1')
   const [unitFilter, setUnitFilter] = useState('pu1u0')
-  
-  // Get available unit keys based on course filter
+
   const getUnitKeys = (course) => {
     const vocab = course === 'pu1' ? PU1_VOCAB : (course === 'pu2' ? PU2_VOCAB : PU3_VOCAB)
     return Object.keys(vocab || {})
   }
-  
+
   const currentUnits = getUnitKeys(courseFilter)
-  
-  // Get all words based on filters
+
   const getWords = () => {
     let words = []
     const vocab = courseFilter === 'pu1' ? PU1_VOCAB : (courseFilter === 'pu2' ? PU2_VOCAB : PU3_VOCAB)
     const unitKeys = getUnitKeys(courseFilter)
-    
     if (unitFilter === 'all') {
       words = unitKeys.flatMap(k => vocab[k]?.words?.map((w, i) => ({...w, unitKey: k, wordIndexInUnit: i})) || [])
     } else {
@@ -972,49 +618,365 @@ function BrowseAllView({ VOCAB, PU1_VOCAB, PU2_VOCAB, PU3_VOCAB, progress, onBac
     }
     return words
   }
-  
+
   const visible = getWords()
-  
+
   return (
-    <div className="browse-all-view">
-      <div className="browse-header">
-        <button className="icon-btn" onClick={onBack}>← Back</button>
-        <h2>All Words</h2>
+    <div className="max-w-[860px] mx-auto animate-fade-in">
+      <div className="flex items-center gap-3.5 mb-[18px]">
+        <Button variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft size={16} />
+        </Button>
+        <h2 className="text-2xl font-bold tracking-[-0.3px]">All Words</h2>
       </div>
-      
-      {/* Course selector */}
-      <div className="course-tabs">
-        <button className={`course-tab ${courseFilter === 'pu1' ? 'active' : ''}`}
-          onClick={() => { setCourseFilter('pu1'); setUnitFilter('pu1u0'); }}>🌱 PU1</button>
-        <button className={`course-tab ${courseFilter === 'pu2' ? 'active' : ''}`}
-          onClick={() => { setCourseFilter('pu2'); setUnitFilter('pu2u1'); }}>📚 PU2</button>
-        <button className={`course-tab ${courseFilter === 'pu3' ? 'active' : ''}`}
-          onClick={() => { setCourseFilter('pu3'); setUnitFilter('pu3u1'); }}>🚀 PU3</button>
-      </div>
-      
-      {/* Unit selector */}
-      <div className="unit-tabs">
-        <button className={`tab-btn ${unitFilter === 'all' ? 'active' : ''}`}
-          onClick={() => setUnitFilter('all')}>All</button>
-        {currentUnits.map(k => (
-          <button key={k} className={`tab-btn ${unitFilter === k ? 'active' : ''}`}
-            onClick={() => setUnitFilter(k)}>{k.replace('pu1u','PU1U').replace('pu2u','PU2U').replace('pu3u','PU3U')}</button>
+
+      {/* Course selector tabs */}
+      <div className="flex gap-1.5 mb-3.5">
+        {[
+          { key: 'pu1', icon: '🌱', label: 'PU1' },
+          { key: 'pu2', icon: '📚', label: 'PU2' },
+          { key: 'pu3', icon: '🚀', label: 'PU3' },
+        ].map(c => (
+          <button
+            key={c.key}
+            onClick={() => { setCourseFilter(c.key); setUnitFilter(c.key === 'pu1' ? 'pu1u0' : (c.key === 'pu2' ? 'pu2u1' : 'pu3u1')) }}
+            className={cn(
+              "flex-1 rounded-md py-2.5 px-4 text-sm font-semibold cursor-pointer transition-all duration-150 border-0",
+              courseFilter === c.key
+                ? "bg-surface text-text shadow-[0_0_0_1px_var(--color-border)]"
+                : "bg-bg-deep text-text-light hover:bg-surface-hover hover:text-text-soft shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)]"
+            )}
+          >
+            {c.icon} {c.label}
+          </button>
         ))}
       </div>
-      
-      <div className="browse-stats">
+
+      {/* Unit filter tabs */}
+      <div className="flex flex-wrap gap-2 mb-[18px]">
+        <button
+          onClick={() => setUnitFilter('all')}
+          className={cn(
+            "rounded-[18px] px-3.5 py-1.5 text-[13px] cursor-pointer transition-all duration-150 border-0",
+            unitFilter === 'all'
+              ? "bg-primary text-white shadow-[0_0_0_1px_var(--color-primary)]"
+              : "bg-surface text-text-light shadow-[0_0_0_1px_var(--color-border)] hover:bg-surface-hover hover:text-text-soft"
+          )}
+        >
+          All
+        </button>
+        {currentUnits.map(k => (
+          <button
+            key={k}
+            onClick={() => setUnitFilter(k)}
+            className={cn(
+              "rounded-[18px] px-3.5 py-1.5 text-[13px] cursor-pointer transition-all duration-150 border-0",
+              unitFilter === k
+                ? "bg-primary text-white shadow-[0_0_0_1px_var(--color-primary)]"
+                : "bg-surface text-text-light shadow-[0_0_0_1px_var(--color-border)] hover:bg-surface-hover hover:text-text-soft"
+            )}
+          >
+            {k.replace('pu1u','PU1U').replace('pu2u','PU2U').replace('pu3u','PU3U')}
+          </button>
+        ))}
+      </div>
+
+      <div className="text-center text-text-light mb-3.5 text-[13px]">
         {visible.length} words
       </div>
-      
-      <div className="browse-grid">
+
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(100px,1fr))] gap-3">
         {visible.map((w) => (
-          <div key={w.word} className="word-chip"
-            onClick={() => onFlashcard(w.unitKey, w.wordIndexInUnit)}>
-            <img src={w.image ? (w.image.startsWith('/') ? w.image : '/' + w.image) : `/images/${w.word}.png`} alt={w.word} className="word-chip-img"
-              onError={e => { e.target.style.opacity='0.2' }} />
-            <span className="word-chip-name">{w.word}</span>
+          <div
+            key={w.word}
+            onClick={() => onFlashcard(w.unitKey, w.wordIndexInUnit)}
+            className="bg-surface shadow-[0_0_0_1px_var(--color-border)] rounded-[10px] p-3 text-center cursor-pointer transition-all duration-150 flex flex-col items-center gap-1.5 hover:shadow-[0_0_0_1px_var(--color-border-hover),0_4px_12px_rgba(0,0,0,0.25),0_2px_4px_rgba(0,0,0,0.2),0_0_20px_rgba(106,95,193,0.3)] hover:-translate-y-0.5"
+          >
+            <img
+              src={w.image ? (w.image.startsWith('/') ? w.image : '/' + w.image) : `/images/${w.word}.png`}
+              alt={w.word}
+              className="w-14 h-14 object-contain bg-white rounded-md p-1"
+              onError={e => { e.target.style.opacity = '0.2'; e.target.style.filter = 'grayscale(1)' }}
+            />
+            <span className="text-[13px] font-semibold break-all leading-[1.3]">{w.word}</span>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── 主 App ─────────────────────────────────────────────
+if (window.speechSynthesis) {
+  window.speechSynthesis.getVoices()
+  window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices()
+}
+
+const COURSES = [
+  {
+    id: 'PU1', icon: '🌱', title: 'Hello', subtitle: '183 Words · 10 Units',
+    color: '#22c55e', bg: '#bbf7d0',
+    units: ['pu1u0','pu1u1','pu1u2','pu1u3','pu1u4','pu1u5','pu1u6','pu1u7','pu1u8','pu1u9'],
+    locked: false,
+  },
+  {
+    id: 'PU2', icon: '📚', title: 'Meet the Family', subtitle: '168 Words · 9 Units',
+    color: '#3b82f6', bg: '#dbeafe',
+    units: ['pu2u1','pu2u2','pu2u3','pu2u4','pu2u5','pu2u6','pu2u7','pu2u8','pu2u9'],
+    locked: false,
+  },
+  {
+    id: 'PU3', icon: '🚀', title: 'Welcome to Diversicus', subtitle: '143 Words · 9 Units',
+    color: '#8b5cf6', bg: '#ede9fe',
+    units: ['pu3u1','pu3u2','pu3u3','pu3u4','pu3u5','pu3u6','pu3u7','pu3u8','pu3u9'],
+    locked: false,
+  },
+]
+
+export default function App() {
+  const [homeView, setHomeView] = useState('home')
+  const [activeCourse, setActiveCourse] = useState(null)
+  const [activeUnit, setActiveUnit] = useState(null)
+  const [unitView, setUnitView] = useState(null)
+  const [startWordIdx, setStartWordIdx] = useState(0)
+  const [showStats, setShowStats] = useState(false)
+  const [progress, setProgress] = useState(loadProgress)
+  const refresh = () => setProgress(loadProgress())
+
+  const audioInitedRef = useRef(false)
+  const initOnInteraction = useCallback(() => {
+    if (!audioInitedRef.current) {
+      audioInitedRef.current = true
+      const ctx = getAudioCtx()
+      if (ctx.state === 'suspended') ctx.resume()
+      _audioCtxReady = true
+    }
+  }, [])
+
+  const onFirstClick = useCallback(() => initOnInteraction(), [initOnInteraction])
+
+  // ── 统计页面 ─────────────────────────────────────
+  if (showStats) {
+    return (
+      <div className="max-w-[860px] mx-auto px-6 py-8" onClick={onFirstClick}>
+        <StatsPage onBack={() => setShowStats(false)} />
+      </div>
+    )
+  }
+
+  // ── 第三级：闯关 / 闪卡 / 随机闯关 ─────────────
+  if (activeCourse && unitView) {
+    const words = unitView === 'random'
+      ? (() => {
+          const all = activeCourse.units.flatMap(k => VOCAB[k]?.words || [])
+          const arr = [...all]
+          for (let i = arr.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [arr[i], arr[j]] = [arr[j], arr[i]]
+          }
+          return arr.slice(0, 10)
+        })()
+      : (activeUnit ? getVocabData(activeUnit)?.words || [] : [])
+    const title = unitView === 'random' ? `Random Challenge (10 words)`
+      : unitView === 'flashcard' ? getVocabData(activeUnit)?.title
+      : getVocabData(activeUnit)?.title
+    return (
+      <div className="max-w-[860px] mx-auto px-6 py-8" onClick={onFirstClick}>
+        <Card className="p-6 mt-5">
+          <div className="mb-3.5 pb-3 border-b border-border">
+            <Button variant="ghost" size="sm" onClick={() => { setActiveCourse(null); setActiveUnit(null); setUnitView(null) }}>
+              <ArrowLeft size={16} /> Back to Courses
+            </Button>
+          </div>
+          {unitView === 'flashcard' && activeUnit && (
+            <UnitFlashcardView
+              unitKey={activeUnit} VOCAB={VOCAB} progress={progress} refresh={refresh}
+              startIdx={startWordIdx} onBack={() => { setUnitView(null); setActiveUnit(null) }}
+            />
+          )}
+          {(unitView === 'spelling' || unitView === 'random') && (
+            <SpellingGame
+              key={`${unitView}-${activeUnit || 'all'}-${Date.now()}`}
+              unitKey={activeUnit || 'random'} unitTitle={title} allWords={words}
+              onComplete={() => { refresh(); setUnitView(null); setActiveUnit(null) }}
+              onBack={() => { setUnitView(null); setActiveUnit(null) }}
+            />
+          )}
+        </Card>
+      </div>
+    )
+  }
+
+  // ── 第二级：课程内（单元列表） ─────────────────
+  if (activeCourse) {
+    return (
+      <div className="max-w-[860px] mx-auto px-6 py-6" onClick={onFirstClick}>
+        <Button variant="ghost" size="sm" onClick={() => { setActiveCourse(null); setActiveUnit(null); setUnitView(null) }} className="mb-4">
+          <ArrowLeft size={16} /> Back to Courses
+        </Button>
+
+        <div className="flex items-center gap-4 bg-bg-deep rounded-[14px] p-5 mb-5 shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)]">
+          <span className="text-5xl">{activeCourse.icon}</span>
+          <div>
+            <h1 className="text-2xl font-bold tracking-[-0.3px] text-text">{activeCourse.id} · {activeCourse.title}</h1>
+            <p className="text-[13px] text-text-light mt-1">{activeCourse.subtitle}</p>
+          </div>
+        </div>
+
+        <div className="mb-5">
+          <button
+            onClick={() => { setUnitView('random'); setActiveUnit(null) }}
+            className="w-full flex items-center justify-center gap-2.5 bg-surface rounded-[14px] py-4 px-6 text-sm font-semibold text-text uppercase tracking-[0.4px] cursor-pointer transition-all duration-150 border-0 shadow-[0_0_0_1px_var(--color-border),inset_0_1px_3px_rgba(0,0,0,0.1)] hover:bg-surface-hover hover:shadow-[0_0_0_1px_var(--color-border-hover),0_4px_12px_rgba(0,0,0,0.25),0_2px_4px_rgba(0,0,0,0.2),inset_0_1px_3px_rgba(0,0,0,0.1)]"
+          >
+            <Zap size={18} /> Random Challenge (10 words)
+          </button>
+        </div>
+
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3">
+          {activeCourse.units.map(key => {
+            const unit = VOCAB[key]
+            if (!unit) return null
+            const prog = progress[key] || {}
+            const done = prog.completed
+            const stars = prog.bestScore ? Math.min(3, Math.ceil(prog.bestScore / 4)) : 0
+            return (
+              <Card key={key} className={cn("p-4 flex flex-col gap-2 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_var(--color-border-hover),var(--shadow),var(--shadow-glow)]", done && "shadow-[0_0_0_1px_rgba(194,239,78,0.25)]")}>
+                <div className="flex items-center justify-between">
+                  <Badge variant={done ? "success" : "default"}>
+                    {key.replace('pu3u', 'PU3U').replace('pu2u', 'PU2U').replace('pu1u', 'PU1U')}
+                  </Badge>
+                  {done && <span className="text-sm text-coral">{'★'.repeat(stars)}</span>}
+                </div>
+                <div className="py-1.5 px-2 rounded-md bg-bg-deep">
+                  <h3 className="text-[15px] font-semibold text-text leading-[1.3]">{unit.title}</h3>
+                </div>
+                <p className="text-xs text-text-light ml-2 my-0.5">{unit.words.length} words</p>
+                <div className="flex gap-2 mt-1.5">
+                  <button
+                    onClick={() => { setActiveUnit(key); setUnitView('spelling') }}
+                    className="flex flex-col items-center gap-1 flex-1 py-2.5 px-2 rounded-[10px] cursor-pointer border-0 text-xs font-semibold uppercase tracking-[0.2px] transition-all duration-150 bg-primary-light text-primary hover:bg-[rgba(106,95,193,0.25)] active:scale-[0.96]"
+                  >
+                    <Target size={20} />
+                    <span>Challenge</span>
+                  </button>
+                  <button
+                    onClick={() => { setActiveUnit(key); setUnitView('flashcard') }}
+                    className="flex flex-col items-center gap-1 flex-1 py-2.5 px-2 rounded-[10px] cursor-pointer border-0 text-xs font-semibold uppercase tracking-[0.2px] transition-all duration-150 bg-coral-bg text-coral hover:bg-[rgba(255,178,135,0.2)] active:scale-[0.96]"
+                  >
+                    <BookOpen size={20} />
+                    <span>Learn</span>
+                  </button>
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  // ── 首页 ────────────────────────────────
+  return (
+    <div className="max-w-[860px] mx-auto px-6 py-8 pb-16" onClick={onFirstClick}>
+      {/* Header */}
+      <header className="text-center py-12">
+        <h1 className="text-[40px] font-bold tracking-[-0.5px] leading-[1.1] text-text">🎯 Spelling Academy</h1>
+        <p className="text-[15px] text-text-light mt-2 font-normal">Master English Vocabulary — One Level at a Time</p>
+      </header>
+
+      {/* Navigation Tabs */}
+      <div className="flex gap-1 p-1 bg-bg-deep rounded-[10px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] mb-7">
+        <button
+          onClick={() => setHomeView('home')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-md text-[13px] font-medium cursor-pointer transition-all duration-150 border-0",
+            homeView === 'home' ? "bg-surface text-text shadow-[0_0_0_1px_var(--color-border)]" : "bg-transparent text-text-light hover:bg-surface-hover hover:text-text-soft"
+          )}
+        >
+          <BookOpen size={16} /> Courses
+        </button>
+        <button
+          onClick={() => setHomeView('browse')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-md text-[13px] font-medium cursor-pointer transition-all duration-150 border-0",
+            homeView === 'browse' ? "bg-surface text-text shadow-[0_0_0_1px_var(--color-border)]" : "bg-transparent text-text-light hover:bg-surface-hover hover:text-text-soft"
+          )}
+        >
+          <Search size={16} /> Browse All
+        </button>
+        <button
+          onClick={() => setShowStats(true)}
+          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-md text-[13px] font-medium cursor-pointer transition-all duration-150 border-0 bg-transparent text-text-light hover:bg-surface-hover hover:text-text-soft"
+        >
+          <Trophy size={16} /> My Progress
+        </button>
+      </div>
+
+      {homeView === 'browse' ? (
+        <BrowseAllView
+          VOCAB={VOCAB} PU1_VOCAB={PU1_VOCAB} PU2_VOCAB={PU2_VOCAB} PU3_VOCAB={PU3_VOCAB}
+          progress={progress} onBack={() => setHomeView('home')}
+          onFlashcard={(unitKey, wordIdx = 0) => {
+            let course = 'PU3'
+            if (unitKey.startsWith('pu1u')) course = 'PU1'
+            else if (unitKey.startsWith('pu2u')) course = 'PU2'
+            setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course)); setUnitView('flashcard'); setStartWordIdx(wordIdx)
+          }}
+          onChallenge={(unitKey) => {
+            let course = 'PU3'
+            if (unitKey.startsWith('pu1u')) course = 'PU1'
+            else if (unitKey.startsWith('pu2u')) course = 'PU2'
+            setActiveUnit(unitKey); setActiveCourse(COURSES.find(c => c.id === course))
+          }}
+        />
+      ) : (
+        <>
+          {/* Course Cards Grid */}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
+            {COURSES.map(course => (
+              <div
+                key={course.id}
+                className={cn(
+                  "bg-surface rounded-[14px] shadow-[0_0_0_1px_var(--color-border)] p-5 cursor-pointer transition-all duration-150 flex flex-col gap-2.5",
+                  course.locked ? "opacity-50 cursor-default" : "hover:shadow-[0_0_0_1px_var(--color-border-hover),var(--shadow),var(--shadow-glow)] hover:-translate-y-[3px]"
+                )}
+                onClick={() => !course.locked && setActiveCourse(course)}
+              >
+                <div className="flex items-center gap-2.5">
+                  <span className="text-4xl">{course.icon}</span>
+                  <Badge variant="default">{course.id}</Badge>
+                  {course.locked && <span className="ml-auto text-base">🔒</span>}
+                </div>
+                <h2 className="text-[22px] font-bold text-text leading-[1.2] tracking-[-0.3px]">{course.title}</h2>
+                <p className="text-[13px] text-text-light">{course.subtitle}</p>
+                {(course.id === 'PU1' || course.id === 'PU2') && <br/>}
+                {!course.locked && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {course.units.slice(0,3).map(u => (
+                      <Badge key={u} variant="muted" className="text-[10px]">
+                        {u.replace('pu1u', 'PU1U').replace('pu2u', 'PU2U').replace('pu3u', 'PU3U')}
+                      </Badge>
+                    ))}
+                    {course.units.length > 3 && <Badge variant="muted" className="text-[10px]">+{course.units.length-3} more</Badge>}
+                  </div>
+                )}
+                {course.locked ? (
+                  <span className="mt-2 py-2.5 px-4 rounded-md bg-text-muted text-white text-xs font-semibold text-center block uppercase tracking-[0.3px]">Coming Soon</span>
+                ) : (
+                  <span className="mt-2 py-2.5 px-4 rounded-md bg-muted-purple text-white text-xs font-semibold text-center block uppercase tracking-[0.3px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.1)] transition-all hover:bg-[#8a759e]">
+                    Start Learning <ChevronRight size={12} className="inline ml-1" />
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <img src="/images/banner.gif" alt="" className="home-banner" />
+        </>
+      )}
+
+      <div className="text-center text-[13px] text-text-muted mt-12 p-3 bg-surface rounded-md">
+        bug feedback/班级群，请加微信：sugarbomb2017
       </div>
     </div>
   )
